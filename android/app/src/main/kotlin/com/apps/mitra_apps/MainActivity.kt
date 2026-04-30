@@ -1,4 +1,4 @@
-package com.example.mitra_apps
+package com.apps.mitra_apps
 
 import io.flutter.embedding.android.FlutterActivity
 
