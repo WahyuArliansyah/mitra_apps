@@ -20,13 +20,14 @@ class GuruService {
     }
   }
 
-  // Tambah Guru
+  // Tambah Data Guru
   Future<bool> tambahGuru(GuruModel guru) async {
     try {
       final String emailLogin = '${guru.nip}@mitra.com';
 
-      // ✅ Simpan session admin dulu sebelum signUp
-      final sessionAdmin = supabase.auth.currentSession;
+      // ✅ Simpan access token & refresh token admin sebelum signUp
+      final accessToken = supabase.auth.currentSession?.accessToken;
+      final refreshToken = supabase.auth.currentSession?.refreshToken;
 
       // 1. Daftarkan ke Supabase Auth
       final AuthResponse res = await supabase.auth.signUp(
@@ -40,18 +41,34 @@ class GuruService {
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // 2. Masukkan ke tabel guru
-        await supabase.from('guru').insert({
-          'id_guru': uidBaru,
-          'user_id': uidBaru,
-          'nip': guru.nip,
-          'nama_lengkap': guru.namaLengkap,
-          'email': guru.email,
-        });
+        try {
+          // 2. Hash password via RPC
+          final hashedPassword = await supabase.rpc(
+            'hash_password',
+            params: {'plain_password': guru.nip!},
+          );
 
-        // ✅ Restore session admin setelah signUp guru selesai
-        if (sessionAdmin != null) {
-          await supabase.auth.setSession(sessionAdmin.refreshToken!);
+          // 3. Insert ke tabel guru
+          await supabase.from('guru').insert({
+            'id_guru': uidBaru,
+            'user_id': uidBaru,
+            'nip': guru.nip,
+            'nama_lengkap': guru.namaLengkap,
+            'email': guru.email,
+          });
+
+          // 4. Update kata_sandi di tabel pengguna
+          await supabase
+              .from('pengguna')
+              .update({'kata_sandi': hashedPassword})
+              .eq('id', uidBaru);
+        } catch (e) {
+          print('Error step insert/hash: $e');
+        }
+
+        // ✅ Restore session admin dengan setSession langsung
+        if (accessToken != null && refreshToken != null) {
+          await supabase.auth.setSession(refreshToken);
         }
 
         return true;
@@ -63,7 +80,7 @@ class GuruService {
     }
   }
 
-  // Perbarui data guru
+  // Update data guru
   Future<bool> updateGuru(String id, Map<String, dynamic> data) async {
     try {
       await supabase.from('guru').update(data).eq('id_guru', id);
@@ -74,6 +91,7 @@ class GuruService {
     }
   }
 
+  // Delete Data Guru
   Future<bool> hapusGuru(String idGuru) async {
     try {
       // 1. Ambil user_id dulu sebelum dihapus
@@ -91,6 +109,9 @@ class GuruService {
       // 3. Hapus dari tabel pengguna
       if (userId != null) {
         await supabase.from('pengguna').delete().eq('id', userId);
+
+        // 4. Hapus dari Supabase Auth
+        await supabase.rpc('hapus_auth_user', params: {'uid': userId});
       }
 
       return true;

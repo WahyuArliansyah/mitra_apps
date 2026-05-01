@@ -27,7 +27,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     _ambilDataKelas();
   }
 
-  // ── Data ────────────────────────────────────────────────
+  // Mengambil Data Siswa beserta nama kelasnya dengan join tabel
   Future<void> _ambilDataSiswa() async {
     try {
       final data = await supabase

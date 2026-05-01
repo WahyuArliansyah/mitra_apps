@@ -5,6 +5,8 @@ import 'package:mitra_apps/views/admin_siswa_view.dart';
 import 'package:mitra_apps/views/kelola_guru_view.dart';
 import 'package:mitra_apps/views/kelola_mapping_guru_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
+import 'package:mitra_apps/widgets/menu_tile.dart';
+import 'package:mitra_apps/widgets/stat_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminDashboardView extends StatefulWidget {
@@ -32,32 +34,28 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     try {
       final guruData = await supabase.from('guru').select('id_guru');
       final siswaData = await supabase.from('siswa').select('id_siswa');
+      if (!mounted) return;
       setState(() {
         totalGuru = (guruData as List).length;
         totalSiswa = (siswaData as List).length;
         _isCounting = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isCounting = false);
     }
   }
 
   Future<void> _getProfile() async {
     final user = supabase.auth.currentUser;
-    print('Current user ID: ${user?.id}'); // ← cek di console
-
     if (user != null) {
       final data = await supabase
           .from('pengguna')
-          .select('nama_lengkap, peran') // ← tambah peran untuk verifikasi
+          .select('nama_lengkap')
           .eq('id', user.id)
           .maybeSingle();
-
-      print('Profile data: $data'); // ← cek hasilnya
-
-      if (data != null) {
-        setState(() => namaAdmin = data['nama_lengkap']);
-      }
+      if (!mounted) return;
+      if (data != null) setState(() => namaAdmin = data['nama_lengkap']);
     }
   }
 
@@ -88,15 +86,21 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
     if (ok == true && mounted) {
       await supabase.auth.signOut();
-      if (ok == true && mounted) {
-        await supabase.auth.signOut();
+      if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const LoginView()),
+          MaterialPageRoute(builder: (_) => const LoginView()),
           (route) => false,
         );
       }
     }
+  }
+
+  void _navigateTo(Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    ).then((_) => _hitungDataReal());
   }
 
   @override
@@ -104,7 +108,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       body: RefreshIndicator(
-        // ← wrap di sini
         onRefresh: () async {
           setState(() => _isCounting = true);
           await _hitungDataReal();
@@ -122,11 +125,71 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   children: [
                     _buildSectionLabel('Statistik Cepat'),
                     const SizedBox(height: 12),
-                    _buildStatRow(),
+                    // ✅ Pakai StatCard dari widgets/
+                    Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            label: 'Total Guru',
+                            value: totalGuru,
+                            icon: Icons.person_rounded,
+                            color: const Color(0xFF4E73DF),
+                            bg: const Color(0xFFEEF2FF),
+                            isLoading: _isCounting,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: StatCard(
+                            label: 'Total Siswa',
+                            value: totalSiswa,
+                            icon: Icons.groups_rounded,
+                            color: const Color(0xFF1CC88A),
+                            bg: const Color(0xFFE8FBF4),
+                            isLoading: _isCounting,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 28),
                     _buildSectionLabel('Menu Utama'),
                     const SizedBox(height: 12),
-                    _buildMenuGrid(),
+                    // ✅ Pakai MenuTile dari widgets/
+                    MenuTile(
+                      title: 'Data Kelas',
+                      icon: Icons.class_rounded,
+                      color: const Color(0xFF7C3AED),
+                      bg: const Color(0xFFF0EBFF),
+                      onTap: () => _navigateTo(const AdminKelasView()),
+                    ),
+                    MenuTile(
+                      title: 'Mata Pelajaran',
+                      icon: Icons.menu_book_rounded,
+                      color: const Color(0xFF059669),
+                      bg: const Color(0xFFE6FAF5),
+                      onTap: () => _navigateTo(const AdminMapelView()),
+                    ),
+                    MenuTile(
+                      title: 'Data Guru',
+                      icon: Icons.school_rounded,
+                      color: const Color(0xFFDC2626),
+                      bg: const Color(0xFFFEECEC),
+                      onTap: () => _navigateTo(const KelolaGuruView()),
+                    ),
+                    MenuTile(
+                      title: 'Data Siswa',
+                      icon: Icons.face_rounded,
+                      color: const Color(0xFFD97706),
+                      bg: const Color(0xFFFEF3E0),
+                      onTap: () => _navigateTo(const AdminSiswaView()),
+                    ),
+                    MenuTile(
+                      title: 'Penugasan Guru',
+                      icon: Icons.assignment_rounded,
+                      color: const Color(0xFF0EA5E9),
+                      bg: const Color(0xFFE0F2FE),
+                      onTap: () => _navigateTo(const KelolaMapingGuruView()),
+                    ),
                   ],
                 ),
               ),
@@ -163,7 +226,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 children: [
                   Row(
                     children: [
-                      // Avatar inisial
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: Colors.white.withOpacity(0.2),
@@ -203,8 +265,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           ],
                         ),
                       ),
-
-                      // Tombol logout
                       GestureDetector(
                         onTap: _logout,
                         child: Container(
@@ -248,7 +308,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  // ── Label Section ────────────────────────────────────────
   Widget _buildSectionLabel(String text) {
     return Text(
       text,
@@ -260,205 +319,4 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       ),
     );
   }
-
-  // ── Stat Row ─────────────────────────────────────────────
-  Widget _buildStatRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _statCard(
-            'Total Guru',
-            totalGuru,
-            Icons.person_rounded,
-            const Color(0xFF4E73DF),
-            const Color(0xFFEEF2FF),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _statCard(
-            'Total Siswa',
-            totalSiswa,
-            Icons.groups_rounded,
-            const Color(0xFF1CC88A),
-            const Color(0xFFE8FBF4),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _statCard(
-    String label,
-    int value,
-    IconData icon,
-    Color color,
-    Color bg,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isCounting ? '...' : '$value',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF9AA0B2)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Menu Grid ────────────────────────────────────────────
-  Widget _buildMenuGrid() {
-    final menus = [
-      _Menu(
-        'Data Kelas',
-        Icons.class_rounded,
-        const Color(0xFF7C3AED),
-        const Color(0xFFF0EBFF),
-        const AdminKelasView(),
-      ),
-      _Menu(
-        'Mata Pelajaran',
-        Icons.menu_book_rounded,
-        const Color(0xFF059669),
-        const Color(0xFFE6FAF5),
-        const AdminMapelView(),
-      ),
-      _Menu(
-        'Data Guru',
-        Icons.school_rounded,
-        const Color(0xFFDC2626),
-        const Color(0xFFFEECEC),
-        const KelolaGuruView(),
-      ),
-      _Menu(
-        'Data Siswa',
-        Icons.face_rounded,
-        const Color(0xFFD97706),
-        const Color(0xFFFEF3E0),
-        const AdminSiswaView(),
-      ),
-      _Menu(
-        'Penugasan Guru',
-        Icons.assignment_rounded,
-        const Color(0xFF7C3AED),
-        const Color(0xFFF0EBFF),
-        const KelolaMapingGuruView(),
-      ),
-    ];
-
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 14,
-      mainAxisSpacing: 14,
-      childAspectRatio: 1.05,
-      children: menus.map((m) => _menuCard(m)).toList(),
-    );
-  }
-
-  Widget _menuCard(_Menu m) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => m.page),
-      ).then((_) => _hitungDataReal()),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: m.bg,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(m.icon, color: m.color, size: 24),
-            ),
-            const Spacer(),
-            Text(
-              m.title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1F36),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(
-                  'Kelola data',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 11,
-                  color: Colors.grey.shade300,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Menu {
-  final String title;
-  final IconData icon;
-  final Color color, bg;
-  final Widget page;
-  const _Menu(this.title, this.icon, this.color, this.bg, this.page);
 }

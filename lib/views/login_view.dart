@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/views/admin_main_nav.dart';
+import 'package:mitra_apps/views/admin_dashboard_view.dart';
 import 'package:mitra_apps/views/guru_dashboard_view.dart';
 import 'package:mitra_apps/views/siswa_dashboard_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -98,7 +98,9 @@ class _LoginViewState extends State<LoginView> {
           if (peran == 'admin') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const AdminMainNav()),
+              MaterialPageRoute(
+                builder: (context) => const AdminDashboardView(),
+              ),
             );
           } else if (peran == 'guru') {
             Navigator.pushReplacement(

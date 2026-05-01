@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/views/admin_main_nav.dart';
+import 'package:mitra_apps/views/admin_dashboard_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
       initialRoute: isLoggedIn ? '/nav-admin' : '/login',
       routes: {
         '/login': (context) => const LoginView(),
-        '/nav-admin': (context) => const AdminMainNav(),
+        '/nav-admin': (context) => const AdminDashboardView(),
       },
     );
   }

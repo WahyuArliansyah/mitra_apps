@@ -13,7 +13,7 @@ class GuruModel {
     required this.email,
   });
 
-  // Mengubah data JSON dari Supabase menjadi Object Flutter[cite: 3]
+  // Mengubah data JSON dari Supabase menjadi Object Flutter
   factory GuruModel.fromJson(Map<String, dynamic> json) {
     return GuruModel(
       idGuru: json['id_guru'] as String?,
@@ -24,11 +24,11 @@ class GuruModel {
     );
   }
 
-  // Mengubah Object Flutter menjadi Map untuk disimpan ke Supabase[cite: 3]
+  // Mengubah Object Flutter menjadi Map untuk disimpan ke Supabase
   Map<String, dynamic> toMap() {
     return {
       if (idGuru != null) 'id_guru': idGuru,
-      'user_id': userId, // Digunakan untuk relasi ke tabel pengguna[cite: 3]
+      'user_id': userId, // Digunakan untuk relasi ke tabel pengguna
       'nip': nip,
       'nama_lengkap': namaLengkap,
       'email': email,
