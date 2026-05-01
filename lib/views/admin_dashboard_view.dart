@@ -3,6 +3,7 @@ import 'package:mitra_apps/views/admin_kelas_view.dart';
 import 'package:mitra_apps/views/admin_mapel_view.dart';
 import 'package:mitra_apps/views/admin_siswa_view.dart';
 import 'package:mitra_apps/views/kelola_guru_view.dart';
+import 'package:mitra_apps/views/kelola_mapping_guru_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -43,13 +44,20 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Future<void> _getProfile() async {
     final user = supabase.auth.currentUser;
+    print('Current user ID: ${user?.id}'); // ← cek di console
+
     if (user != null) {
       final data = await supabase
           .from('pengguna')
-          .select('nama_lengkap')
+          .select('nama_lengkap, peran') // ← tambah peran untuk verifikasi
           .eq('id', user.id)
-          .single();
-      setState(() => namaAdmin = data['nama_lengkap']);
+          .maybeSingle();
+
+      print('Profile data: $data'); // ← cek hasilnya
+
+      if (data != null) {
+        setState(() => namaAdmin = data['nama_lengkap']);
+      }
     }
   }
 
@@ -95,27 +103,36 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionLabel('Statistik Cepat'),
-                  const SizedBox(height: 12),
-                  _buildStatRow(),
-                  const SizedBox(height: 28),
-                  _buildSectionLabel('Menu Utama'),
-                  const SizedBox(height: 12),
-                  _buildMenuGrid(),
-                ],
+      body: RefreshIndicator(
+        // ← wrap di sini
+        onRefresh: () async {
+          setState(() => _isCounting = true);
+          await _hitungDataReal();
+          await _getProfile();
+        },
+        color: const Color(0xFF4E73DF),
+        child: CustomScrollView(
+          slivers: [
+            _buildAppBar(),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionLabel('Statistik Cepat'),
+                    const SizedBox(height: 12),
+                    _buildStatRow(),
+                    const SizedBox(height: 28),
+                    _buildSectionLabel('Menu Utama'),
+                    const SizedBox(height: 12),
+                    _buildMenuGrid(),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -356,6 +373,13 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         const Color(0xFFFEF3E0),
         const AdminSiswaView(),
       ),
+      _Menu(
+        'Penugasan Guru',
+        Icons.assignment_rounded,
+        const Color(0xFF7C3AED),
+        const Color(0xFFF0EBFF),
+        const KelolaMapingGuruView(),
+      ),
     ];
 
     return GridView.count(
@@ -371,8 +395,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Widget _menuCard(_Menu m) {
     return GestureDetector(
-      onTap: () =>
-          Navigator.push(context, MaterialPageRoute(builder: (_) => m.page)),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => m.page),
+      ).then((_) => _hitungDataReal()),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(

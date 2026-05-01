@@ -4,8 +4,6 @@ class GuruModel {
   String? nip;
   String namaLengkap;
   String email;
-  String? jenisKelamin;
-  String? noHp;
 
   GuruModel({
     this.idGuru,
@@ -13,31 +11,27 @@ class GuruModel {
     this.nip,
     required this.namaLengkap,
     required this.email,
-    this.jenisKelamin,
-    this.noHp,
   });
 
+  // Mengubah data JSON dari Supabase menjadi Object Flutter[cite: 3]
   factory GuruModel.fromJson(Map<String, dynamic> json) {
     return GuruModel(
-      idGuru:
-          json['id_guru']
-              as String?, // <-- Menyesuaikan dengan nama kolom di Supabase
+      idGuru: json['id_guru'] as String?,
       userId: json['user_id'] as String?,
       nip: json['nip'] as String?,
       namaLengkap: json['nama_lengkap'] as String? ?? 'Tanpa Nama',
       email: json['email'] as String? ?? 'Tidak ada email',
-      jenisKelamin: json['jenis_kelamin'] as String?,
-      noHp: json['no_hp'] as String?,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  // Mengubah Object Flutter menjadi Map untuk disimpan ke Supabase[cite: 3]
+  Map<String, dynamic> toMap() {
     return {
+      if (idGuru != null) 'id_guru': idGuru,
+      'user_id': userId, // Digunakan untuk relasi ke tabel pengguna[cite: 3]
       'nip': nip,
       'nama_lengkap': namaLengkap,
       'email': email,
-      'jenis_kelamin': jenisKelamin,
-      'no_hp': noHp,
     };
   }
 }

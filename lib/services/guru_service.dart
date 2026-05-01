@@ -2,63 +2,113 @@ import 'package:mitra_apps/models/guru_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruService {
-  // Memanggil mesin Supabase
   final supabase = Supabase.instance.client;
 
-  // 1. FUNGSI READ: Mengambil daftar semua guru dari database
+  // READ: Ambil semua data guru[cite: 2]
   Future<List<GuruModel>> getSemuaGuru() async {
     try {
-      // Minta data dari tabel 'guru' urutkan berdasarkan nama
       final response = await supabase
           .from('guru')
           .select()
           .order('nama_lengkap', ascending: true);
-
-      // Ubah data mentah (JSON) menjadi list cetakan GuruModel
       return (response as List)
           .map((data) => GuruModel.fromJson(data))
           .toList();
     } catch (e) {
-      print('Error saat mengambil data guru: $e');
-      return []; // Jika error, kembalikan list kosong agar aplikasi tidak crash
+      print('Error Get: $e');
+      return [];
     }
   }
 
-  // Menambah guru baru ke database
+  // Tambah Guru
   Future<bool> tambahGuru(GuruModel guru) async {
     try {
-      await supabase.from('guru').insert(guru.toJson());
-      return true; // Berhasil
+      final String emailLogin = '${guru.nip}@mitra.com';
+
+      // ✅ Simpan session admin dulu sebelum signUp
+      final sessionAdmin = supabase.auth.currentSession;
+
+      // 1. Daftarkan ke Supabase Auth
+      final AuthResponse res = await supabase.auth.signUp(
+        email: emailLogin,
+        password: guru.nip!,
+        data: {'nama_lengkap': guru.namaLengkap},
+      );
+
+      if (res.user != null) {
+        final String uidBaru = res.user!.id;
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // 2. Masukkan ke tabel guru
+        await supabase.from('guru').insert({
+          'id_guru': uidBaru,
+          'user_id': uidBaru,
+          'nip': guru.nip,
+          'nama_lengkap': guru.namaLengkap,
+          'email': guru.email,
+        });
+
+        // ✅ Restore session admin setelah signUp guru selesai
+        if (sessionAdmin != null) {
+          await supabase.auth.setSession(sessionAdmin.refreshToken!);
+        }
+
+        return true;
+      }
+      return false;
     } catch (e) {
-      print('Error saat menambah guru: $e');
-      return false; // Gagal
+      print('Error Detail: $e');
+      return false;
     }
   }
 
-  // Menghapus data guru berdasarkan ID
-  Future<bool> hapusGuru(String idGuru) async {
-    // <-- Parameternya saya ubah namanya agar lebih jelas
+  // Perbarui data guru
+  Future<bool> updateGuru(String id, Map<String, dynamic> data) async {
     try {
-      // PERHATIKAN BARIS INI: 'id' diubah menjadi 'id_guru' menyesuaikan kolom di Supabase
-      await supabase.from('guru').delete().eq('id_guru', idGuru);
-      return true; // Berhasil
+      await supabase.from('guru').update(data).eq('id_guru', id);
+      return true;
     } catch (e) {
-      print('Error saat menghapus guru: $e');
-      return false; // Gagal
+      print('Error Update: $e');
+      return false;
     }
   }
 
-  // Memastikan tidak ada NIP, Nama, atau Email yang sama
+  Future<bool> hapusGuru(String idGuru) async {
+    try {
+      // 1. Ambil user_id dulu sebelum dihapus
+      final data = await supabase
+          .from('guru')
+          .select('user_id')
+          .eq('id_guru', idGuru)
+          .single();
+
+      final userId = data['user_id'];
+
+      // 2. Hapus dari tabel guru
+      await supabase.from('guru').delete().eq('id_guru', idGuru);
+
+      // 3. Hapus dari tabel pengguna
+      if (userId != null) {
+        await supabase.from('pengguna').delete().eq('id', userId);
+      }
+
+      return true;
+    } catch (e) {
+      print('Error Delete: $e');
+      return false;
+    }
+  }
+
+  // Validasi agar tidak ada data ganda
   Future<String?> cekDataDuplikat(String nip, String nama, String email) async {
     try {
-      // Cek Email terlebih dahulu
       final cekEmail = await supabase
           .from('guru')
           .select('id_guru')
           .eq('email', email);
       if (cekEmail.isNotEmpty) return 'Email';
 
-      // Cek NIP
       if (nip.isNotEmpty) {
         final cekNip = await supabase
             .from('guru')
@@ -66,18 +116,9 @@ class GuruService {
             .eq('nip', nip);
         if (cekNip.isNotEmpty) return 'NIP';
       }
-
-      // Cek Nama
-      final cekNama = await supabase
-          .from('guru')
-          .select('id_guru')
-          .ilike('nama_lengkap', nama);
-      if (cekNama.isNotEmpty) return 'Nama Lengkap';
-
-      return null; // Jika lolos semua pengecekan, kembalikan null (aman)
+      return null;
     } catch (e) {
-      print('Error saat cek duplikat: $e');
-      return 'Sistem'; // Jika terjadi error jaringan/sistem
+      return 'Sistem';
     }
   }
 }

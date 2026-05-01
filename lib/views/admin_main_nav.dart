@@ -1,7 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/custom_bottom_nav.dart'; // Impor widget baru
+import '../widgets/custom_bottom_nav.dart';
 import 'admin_dashboard_view.dart';
 import 'admin_pengguna_view.dart';
 
@@ -15,12 +15,8 @@ class AdminMainNav extends StatefulWidget {
 class _AdminMainNavState extends State<AdminMainNav> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const AdminDashboardView(),
-    const AdminPenggunaView(),
-  ];
+  // ✅ Tidak perlu List<Widget> _pages lagi
 
-  // Daftar item navigasi menggunakan model NavItem dari file widget
   final List<NavItem> _navItems = const [
     NavItem(
       label: 'Dashboard',
@@ -34,6 +30,7 @@ class _AdminMainNavState extends State<AdminMainNav> {
     ),
   ];
 
+  @override
   void initState() {
     super.initState();
     _setupPushNotification();
@@ -41,17 +38,11 @@ class _AdminMainNavState extends State<AdminMainNav> {
 
   Future<void> _setupPushNotification() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    // 1. Minta Izin
     await messaging.requestPermission();
-
-    // 2. Ambil Token unik perangkat
     String? token = await messaging.getToken();
-
     if (token != null) {
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        // 3. Simpan ke Supabase agar admin bisa memantau di AdminPenggunaView[cite: 2, 4]
         await Supabase.instance.client
             .from('pengguna')
             .update({'fcm_token': token})
@@ -61,13 +52,25 @@ class _AdminMainNavState extends State<AdminMainNav> {
     }
   }
 
+  // ✅ Fungsi untuk build halaman sesuai index
+  Widget _buildPage() {
+    switch (_currentIndex) {
+      case 0:
+        return const AdminDashboardView();
+      case 1:
+        return const AdminPenggunaView();
+      default:
+        return const AdminDashboardView();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // IndexedStack menjaga posisi scroll di setiap halaman
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      // ✅ Ganti IndexedStack dengan _buildPage()
+      // Setiap pindah tab, halaman rebuild & data di-fetch ulang
+      body: _buildPage(),
 
-      // Menggunakan widget yang sudah dipisah
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         items: _navItems,
