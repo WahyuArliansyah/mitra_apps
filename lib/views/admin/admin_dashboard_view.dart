@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/views/admin_kelas_view.dart';
-import 'package:mitra_apps/views/admin_mapel_view.dart';
-import 'package:mitra_apps/views/admin_siswa_view.dart';
-import 'package:mitra_apps/views/kelola_guru_view.dart';
-import 'package:mitra_apps/views/kelola_mapping_guru_view.dart';
+import 'package:mitra_apps/views/admin/admin_kelas_view.dart';
+import 'package:mitra_apps/views/admin/admin_mapel_view.dart';
+import 'package:mitra_apps/views/admin/admin_siswa_view.dart';
+import 'package:mitra_apps/views/admin/kelola_guru_view.dart';
+import 'package:mitra_apps/views/admin/kelola_mapping_guru_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:mitra_apps/widgets/menu_tile.dart';
 import 'package:mitra_apps/widgets/stat_card.dart';

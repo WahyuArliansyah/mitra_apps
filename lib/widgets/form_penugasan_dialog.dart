@@ -4,8 +4,7 @@ class FormPenugasanDialog extends StatefulWidget {
   final List<Map<String, dynamic>> listKelas;
   final List<Map<String, dynamic>> listMapel;
   final Future<void> Function(
-    List<String> idKelasList,
-    List<String> idMapelList,
+    List<Map<String, String>> pasangan, // ← berubah
     String tahunAjaran,
     String semester,
   )
@@ -25,8 +24,11 @@ class FormPenugasanDialog extends StatefulWidget {
 class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
   static const _primary = Color(0xFF7C3AED);
 
-  List<String?> idKelasList = [null];
-  List<String?> idMapelList = [null];
+  // Setiap data kelas & mapel disimpan sebagai pasangan dalam list
+  List<Map<String, String?>> _pasangan = [
+    {'kelas': null, 'mapel': null},
+  ];
+
   late TextEditingController tahunCtrl;
   String semester = '1';
 
@@ -63,24 +65,6 @@ class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
     ),
   );
 
-  Widget _tombolTambah(String label, VoidCallback onTap) => GestureDetector(
-    onTap: onTap,
-    child: Row(
-      children: [
-        Icon(Icons.add_circle_outline, color: _primary, size: 20),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: _primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    ),
-  );
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -94,123 +78,128 @@ class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // KELAS
+              // data pasangan kelas & mapel
               const Text(
-                'Kelas',
+                'Pasangan Kelas & Mata Pelajaran',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
               const SizedBox(height: 8),
+
               ...List.generate(
-                idKelasList.length,
-                (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
+                _pasangan.length,
+                (i) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          decoration: _inputDeco(
-                            'Kelas ${i + 1}',
-                            Icons.class_rounded,
+                      // Header pasangan
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Kelas dan Mata Pelajaran ${i + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _primary,
+                            ),
                           ),
-                          value: idKelasList[i],
-                          hint: const Text('Pilih kelas'),
-                          items: widget.listKelas
-                              .map(
-                                (k) => DropdownMenuItem(
-                                  value: k['id'].toString(),
-                                  child: Text(
-                                    '${k['nama_kelas']} - ${k['jurusan']}',
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => idKelasList[i] = v),
-                        ),
+                          if (_pasangan.length > 1)
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _pasangan.removeAt(i)),
+                              child: const Icon(
+                                Icons.remove_circle_outline,
+                                color: Colors.redAccent,
+                                size: 20,
+                              ),
+                            ),
+                        ],
                       ),
-                      if (idKelasList.length > 1) ...[
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => setState(() => idKelasList.removeAt(i)),
-                          child: const Icon(
-                            Icons.remove_circle_outline,
-                            color: Colors.redAccent,
-                            size: 22,
-                          ),
+                      const SizedBox(height: 10),
+
+                      // Dropdown Kelas
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        decoration: _inputDeco('Kelas', Icons.class_rounded),
+                        value: _pasangan[i]['kelas'],
+                        hint: const Text('Pilih kelas'),
+                        items: widget.listKelas
+                            .map(
+                              (k) => DropdownMenuItem(
+                                value: k['id'].toString(),
+                                child: Text(
+                                  '${k['nama_kelas']} - ${k['jurusan']}',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _pasangan[i]['kelas'] = v),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Dropdown Mapel
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        decoration: _inputDeco(
+                          'Mata Pelajaran',
+                          Icons.menu_book_rounded,
                         ),
-                      ],
+                        value: _pasangan[i]['mapel'],
+                        hint: const Text('Pilih mata pelajaran'),
+                        items: widget.listMapel
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m['id'].toString(),
+                                child: Text(
+                                  '${m['nama_mapel']} (${m['kode_mapel']})',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _pasangan[i]['mapel'] = v),
+                      ),
                     ],
                   ),
                 ),
               ),
-              _tombolTambah(
-                'Tambah Kelas',
-                () => setState(() => idKelasList.add(null)),
-              ),
 
-              const SizedBox(height: 16),
-
-              // MAPEL
-              const Text(
-                'Mata Pelajaran',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              ...List.generate(
-                idMapelList.length,
-                (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          decoration: _inputDeco(
-                            'Mapel ${i + 1}',
-                            Icons.menu_book_rounded,
-                          ),
-                          value: idMapelList[i],
-                          hint: const Text('Pilih mata pelajaran'),
-                          items: widget.listMapel
-                              .map(
-                                (m) => DropdownMenuItem(
-                                  value: m['id'].toString(),
-                                  child: Text(
-                                    '${m['nama_mapel']} (${m['kode_mapel']})',
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => idMapelList[i] = v),
-                        ),
+              // Tombol tambah pasangan
+              GestureDetector(
+                onTap: () => setState(
+                  () => _pasangan.add({'kelas': null, 'mapel': null}),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline, color: _primary, size: 20),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Tambah Kelas & Mapel',
+                      style: TextStyle(
+                        color: _primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
-                      if (idMapelList.length > 1) ...[
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => setState(() => idMapelList.removeAt(i)),
-                          child: const Icon(
-                            Icons.remove_circle_outline,
-                            color: Colors.redAccent,
-                            size: 22,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              _tombolTambah(
-                'Tambah Mapel',
-                () => setState(() => idMapelList.add(null)),
-              ),
 
               const SizedBox(height: 16),
 
-              // TAHUN AJARAN
+              // ── TAHUN AJARAN ──
               TextField(
                 controller: tahunCtrl,
                 decoration: _inputDeco(
@@ -220,7 +209,7 @@ class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
               ),
               const SizedBox(height: 16),
 
-              // SEMESTER
+              // ── SEMESTER ──
               DropdownButtonFormField<String>(
                 decoration: _inputDeco('Semester', Icons.book_rounded),
                 value: semester,
@@ -248,21 +237,24 @@ class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
             ),
           ),
           onPressed: () async {
-            if (idKelasList.any((k) => k == null) ||
-                idMapelList.any((m) => m == null)) {
+            // Validasi semua pasangan terisi
+            final adaKosong = _pasangan.any(
+              (p) => p['kelas'] == null || p['mapel'] == null,
+            );
+            if (adaKosong) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text(
-                    'Semua kelas dan mata pelajaran wajib dipilih!',
-                  ),
+                  content: Text('Semua pasangan kelas & mapel wajib diisi!'),
                   backgroundColor: Colors.redAccent,
                 ),
               );
               return;
             }
+
             await widget.onSimpan(
-              idKelasList.cast<String>(),
-              idMapelList.cast<String>(),
+              _pasangan
+                  .map((p) => {'kelas': p['kelas']!, 'mapel': p['mapel']!})
+                  .toList(),
               tahunCtrl.text,
               semester,
             );

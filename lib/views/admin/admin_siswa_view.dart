@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/models/siswa_model.dart';
 import 'package:mitra_apps/services/siswa_service.dart';
+import 'package:mitra_apps/widgets/bulk_action_dialog.dart';
+import 'package:mitra_apps/widgets/siswa_card.dart';
+import 'package:mitra_apps/widgets/siswa_search_filter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminSiswaView extends StatefulWidget {
@@ -17,8 +20,12 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
   List<Map<String, dynamic>> _listSiswa = [];
   List<Map<String, dynamic>> _filteredListSiswa = [];
   List<Map<String, dynamic>> _listKelas = [];
-  final TextEditingController _searchController = TextEditingController();
+  final _searchController = TextEditingController();
+
   bool _isLoading = true;
+  bool _isSelecting = false;
+  final Set<String> _selectedIds = {};
+  String? _filterKelasId;
 
   static const _primary = Color(0xFF4338CA);
   static const _bgColor = Color(0xFFF4F6FB);
@@ -30,8 +37,8 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     _ambilDataKelas();
   }
 
-  // Mengambil Data Siswa beserta nama kelasnya dengan join tabel
   Future<void> _ambilDataSiswa() async {
+    setState(() => _isLoading = true);
     try {
       final data = await supabase
           .from('siswa')
@@ -39,7 +46,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
           .order('nama_siswa', ascending: true);
       setState(() {
         _listSiswa = List<Map<String, dynamic>>.from(data);
-        _filteredListSiswa = List<Map<String, dynamic>>.from(data);
+        _terapkanFilter();
         _isLoading = false;
       });
     } catch (e) {
@@ -56,22 +63,21 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     setState(() => _listKelas = List<Map<String, dynamic>>.from(data));
   }
 
-  void _jalankanPencarian(String keyword) {
+  void _terapkanFilter() {
+    final keyword = _searchController.text.toLowerCase();
     setState(() {
-      _filteredListSiswa = keyword.isEmpty
-          ? _listSiswa
-          : _listSiswa.where((s) {
-              return s['nama_siswa'].toString().toLowerCase().contains(
-                    keyword.toLowerCase(),
-                  ) ||
-                  s['nis'].toString().toLowerCase().contains(
-                    keyword.toLowerCase(),
-                  );
-            }).toList();
+      _filteredListSiswa = _listSiswa.where((s) {
+        final namaMatch = s['nama_siswa'].toString().toLowerCase().contains(
+          keyword,
+        );
+        final nisMatch = s['nis'].toString().toLowerCase().contains(keyword);
+        final kelasMatch =
+            _filterKelasId == null || s['id_kelas'] == _filterKelasId;
+        return (namaMatch || nisMatch) && kelasMatch;
+      }).toList();
     });
   }
 
-  // Menampilkan Snackbar
   void _showSnackbar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -83,49 +89,48 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     );
   }
 
-  Future<bool> _konfirmasiHapus(String nama) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Hapus Data?', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-            content: Text(
-              'Data siswa "$nama" akan dihapus dan tidak dapat dikembalikan.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(
-                  'Batal',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Hapus'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  Future<void> _bulkHapus() async {
+    final ok = await BulkActionDialog.konfirmasiHapus(
+      context,
+      _selectedIds.length,
+    );
+    if (!ok) return;
+
+    setState(() => _isLoading = true);
+    int berhasil = 0;
+    for (final id in _selectedIds) {
+      if (await _siswaService.hapusSiswa(id)) berhasil++;
+    }
+    setState(() {
+      _selectedIds.clear();
+      _isSelecting = false;
+    });
+    await _ambilDataSiswa();
+    _showSnackbar('$berhasil siswa berhasil dihapus.');
   }
 
-  // Dialog Form
+  Future<void> _bulkPindahKelas() async {
+    final idKelasBaru = await BulkActionDialog.pilihKelasTujuan(
+      context,
+      _selectedIds.length,
+      _listKelas,
+    );
+    if (idKelasBaru == null) return;
+
+    setState(() => _isLoading = true);
+    await supabase
+        .from('siswa')
+        .update({'id_kelas': idKelasBaru})
+        .inFilter('id_siswa', _selectedIds.toList());
+
+    setState(() {
+      _selectedIds.clear();
+      _isSelecting = false;
+    });
+    await _ambilDataSiswa();
+    _showSnackbar('Siswa berhasil dipindahkan ke kelas baru.');
+  }
+
   void _tampilkanDialogForm({Map<String, dynamic>? siswa}) {
     final isEdit = siswa != null;
     final nisCtrl = TextEditingController(text: siswa?['nis'] ?? '');
@@ -214,33 +219,30 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                   _showSnackbar('Semua field wajib diisi!', isError: true);
                   return;
                 }
-
                 if (isEdit) {
-                  // Edit tetap langsung update tabel siswa
-                  await _siswaService.updateSiswa(siswa!['id_siswa'], {
+                  Navigator.pop(ctx);
+                  setState(() => _isLoading = true);
+                  await _siswaService.updateSiswa(siswa['id_siswa'], {
                     'nis': nisCtrl.text.trim(),
                     'nama_siswa': namaCtrl.text.trim(),
                     'id_kelas': idKelasTerpilih,
                   });
-
                   if (mounted) {
-                    Navigator.pop(ctx);
-                    _ambilDataSiswa();
+                    await _ambilDataSiswa();
                     _showSnackbar('Data berhasil diperbarui.');
                   }
                 } else {
-                  // ✅ Tambah baru lewat service agar Auth + hash password jalan
                   final cek = await supabase
                       .from('siswa')
                       .select('id_siswa')
                       .eq('nis', nisCtrl.text.trim());
-
                   if (cek.isNotEmpty) {
                     if (mounted)
                       _showSnackbar('NIS sudah digunakan!', isError: true);
                     return;
                   }
-
+                  Navigator.pop(ctx);
+                  setState(() => _isLoading = true);
                   final sukses = await _siswaService.tambahSiswa(
                     SiswaModel(
                       nis: nisCtrl.text.trim(),
@@ -248,10 +250,8 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                       idKelas: idKelasTerpilih,
                     ),
                   );
-
                   if (mounted) {
-                    Navigator.pop(ctx);
-                    _ambilDataSiswa();
+                    await _ambilDataSiswa();
                     _showSnackbar(
                       sukses
                           ? 'Siswa berhasil ditambahkan.'
@@ -305,70 +305,92 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     );
   }
 
-  // ── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text(
-          'Data Siswa',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: _isSelecting
+            ? Text('${_selectedIds.length} dipilih')
+            : const Text(
+                'Data Siswa',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: _isSelecting
+            ? [
+                IconButton(
+                  icon: Icon(
+                    _selectedIds.length == _filteredListSiswa.length
+                        ? Icons.deselect_rounded
+                        : Icons.select_all_rounded,
+                  ),
+                  onPressed: () => setState(() {
+                    if (_selectedIds.length == _filteredListSiswa.length) {
+                      _selectedIds.clear();
+                    } else {
+                      _selectedIds.addAll(
+                        _filteredListSiswa.map((s) => s['id_siswa'].toString()),
+                      );
+                    }
+                  }),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.drive_file_move_rounded),
+                  tooltip: 'Pindah Kelas',
+                  onPressed: _selectedIds.isEmpty ? null : _bulkPindahKelas,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep_rounded),
+                  tooltip: 'Hapus Terpilih',
+                  onPressed: _selectedIds.isEmpty ? null : _bulkHapus,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => setState(() {
+                    _isSelecting = false;
+                    _selectedIds.clear();
+                  }),
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist_rounded),
+                  tooltip: 'Pilih Siswa',
+                  onPressed: () => setState(() => _isSelecting = true),
+                ),
+              ],
       ),
       body: Column(
         children: [
-          _buildSearchBar(),
+          SiswaSearchFilter(
+            searchController: _searchController,
+            listKelas: _listKelas,
+            filterKelasId: _filterKelasId,
+            jumlahDitemukan: _filteredListSiswa.length,
+            onSearch: (_) => _terapkanFilter(),
+            onFilterKelas: (v) {
+              setState(() => _filterKelasId = v);
+              _terapkanFilter();
+            },
+          ),
           Expanded(child: _buildBody()),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _tampilkanDialogForm(),
-        backgroundColor: _primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Tambah Siswa',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      color: _primary,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: TextField(
-        controller: _searchController,
-        onChanged: _jalankanPencarian,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Cari nama atau NIS...',
-          hintStyle: const TextStyle(color: Colors.white60),
-          prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                  onPressed: () {
-                    _searchController.clear();
-                    _jalankanPencarian('');
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.15),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
-        ),
-      ),
+      floatingActionButton: _isSelecting
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _tampilkanDialogForm(),
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Tambah Siswa',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
     );
   }
 
@@ -394,150 +416,87 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
         ),
       );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-      itemCount: _filteredListSiswa.length,
-      itemBuilder: (ctx, i) => _buildSiswaCard(_filteredListSiswa[i]),
-    );
-  }
+    return RefreshIndicator(
+      onRefresh: _ambilDataSiswa,
+      color: _primary,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+        itemCount: _filteredListSiswa.length,
+        itemBuilder: (ctx, i) {
+          final siswa = _filteredListSiswa[i];
+          final idSiswa = siswa['id_siswa'].toString();
+          return SiswaCard(
+            siswa: siswa,
+            isSelecting: _isSelecting,
+            isSelected: _selectedIds.contains(idSiswa),
+            onLongPress: () => setState(() {
+              _isSelecting = true;
+              _selectedIds.add(idSiswa);
+            }),
+            onTap: () => setState(() {
+              if (_selectedIds.contains(idSiswa)) {
+                _selectedIds.remove(idSiswa);
+                if (_selectedIds.isEmpty) _isSelecting = false;
+              } else {
+                _selectedIds.add(idSiswa);
+              }
+            }),
+            onEdit: () => _tampilkanDialogForm(siswa: siswa),
+            onHapus: () async {
+              final yakin =
+                  await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Hapus Data?', style: TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                      content: Text(
+                        'Data siswa "${siswa['nama_siswa']}" akan dihapus.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text(
+                            'Batal',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Hapus'),
+                        ),
+                      ],
+                    ),
+                  ) ??
+                  false;
 
-  Widget _buildSiswaCard(Map<String, dynamic> siswa) {
-    final inisial = siswa['nama_siswa'].toString().isNotEmpty
-        ? siswa['nama_siswa']
-              .toString()
-              .trim()
-              .split(' ')
-              .map((e) => e[0])
-              .take(2)
-              .join()
-        : '?';
-    final namaKelas = siswa['kelas']?['nama_kelas'] ?? '-';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          radius: 22,
-          backgroundColor: const Color(0xFFEEF2FF),
-          child: Text(
-            inisial.toUpperCase(),
-            style: const TextStyle(
-              color: _primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        title: Text(
-          siswa['nama_siswa'],
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-            color: Color(0xFF1A1F36),
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              // Badge NIS
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  siswa['nis'] ?? '-',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: _primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Badge Kelas
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  namaKelas,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF059669),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _actionBtn(
-              Icons.edit_rounded,
-              const Color(0xFF4E73DF),
-              const Color(0xFFEEF2FF),
-              () => _tampilkanDialogForm(siswa: siswa),
-            ),
-            const SizedBox(width: 6),
-            _actionBtn(
-              Icons.delete_rounded,
-              Colors.redAccent,
-              const Color(0xFFFFEEEE),
-              () async {
-                final yakin = await _konfirmasiHapus(siswa['nama_siswa']);
-                if (yakin && mounted) {
-                  // ✅ Lewat service agar pengguna & auth ikut terhapus
-                  final sukses = await _siswaService.hapusSiswa(
-                    siswa['id_siswa'],
+              if (yakin && mounted) {
+                final sukses = await _siswaService.hapusSiswa(idSiswa);
+                if (mounted) {
+                  await _ambilDataSiswa();
+                  _showSnackbar(
+                    sukses ? 'Data berhasil dihapus.' : 'Gagal menghapus data.',
+                    isError: !sukses,
                   );
-                  if (mounted) {
-                    _ambilDataSiswa();
-                    _showSnackbar(
-                      sukses
-                          ? 'Data berhasil dihapus.'
-                          : 'Gagal menghapus data.',
-                      isError: !sukses,
-                    );
-                  }
                 }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actionBtn(IconData icon, Color color, Color bg, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Icon(icon, color: color, size: 17),
+              }
+            },
+          );
+        },
       ),
     );
   }

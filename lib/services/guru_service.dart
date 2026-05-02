@@ -49,19 +49,29 @@ class GuruService {
           );
 
           // 3. Insert ke tabel guru
-          await supabase.from('guru').insert({
-            'id_guru': uidBaru,
-            'user_id': uidBaru,
-            'nip': guru.nip,
-            'nama_lengkap': guru.namaLengkap,
-            'email': guru.email,
-          });
+          await Future.wait([
+            // Hash & update pengguna
+            supabase
+                .rpc('hash_password', params: {'plain_password': guru.nip!})
+                .then(
+                  (hashedPassword) => supabase
+                      .from('pengguna')
+                      .update({'kata_sandi': hashedPassword})
+                      .eq('id', uidBaru),
+                ),
 
-          // 4. Update kata_sandi di tabel pengguna
-          await supabase
-              .from('pengguna')
-              .update({'kata_sandi': hashedPassword})
-              .eq('id', uidBaru);
+            supabase.from('guru').insert({
+              'id_guru': uidBaru,
+              'user_id': uidBaru,
+              'nip': guru.nip,
+              'nama_lengkap': guru.namaLengkap,
+              'email': guru.email,
+            }),
+            supabase
+                .from('pengguna')
+                .update({'nim_nuptk': guru.nip, 'peran': 'guru'})
+                .eq('id', uidBaru),
+          ]);
         } catch (e) {
           print('Error step insert/hash: $e');
         }
@@ -129,7 +139,10 @@ class GuruService {
       final userId = data['user_id'];
 
       // 2. Hapus dari tabel guru
-      await supabase.from('guru').delete().eq('id_guru', idGuru);
+      await Future.wait([
+        supabase.from('guru').delete().eq('id_guru', idGuru),
+        if (userId != null) supabase.from('pengguna').delete().eq('id', userId),
+      ]);
 
       // 3. Hapus dari tabel pengguna
       if (userId != null) {

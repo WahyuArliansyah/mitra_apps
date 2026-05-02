@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/views/admin_dashboard_view.dart';
+import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
+import 'package:mitra_apps/views/splash_screen_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -28,9 +29,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      // Jika isLoggedIn true, langsung ke nav-admin, jika tidak ke login
-      initialRoute: isLoggedIn ? '/nav-admin' : '/login',
+      home: SplashScreenView(isLoggedIn: isLoggedIn),
       routes: {
+        '/splash': (context) => SplashScreenView(isLoggedIn: isLoggedIn),
         '/login': (context) => const LoginView(),
         '/nav-admin': (context) => const AdminDashboardView(),
       },

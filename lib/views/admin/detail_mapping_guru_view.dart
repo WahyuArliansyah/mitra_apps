@@ -111,31 +111,31 @@ class _DetailMappingGuruViewState extends State<DetailMappingGuruView> {
   }
 
   Future<void> _simpanPenugasan(
-    List<String> idKelasList,
-    List<String> idMapelList,
+    List<Map<String, String>> pasangan,
     String tahun,
     String semester,
   ) async {
     List<Map<String, dynamic>> dataInsert = [];
-    for (final idKelas in idKelasList) {
-      for (final idMapel in idMapelList) {
-        final cek = await supabase
-            .from('penugasan_guru')
-            .select('id')
-            .eq('id_guru', widget.idGuru)
-            .eq('id_kelas', idKelas)
-            .eq('id_mapel', idMapel)
-            .eq('tahun_ajaran', tahun)
-            .eq('semester', semester);
-        if (cek.isEmpty) {
-          dataInsert.add({
-            'id_guru': widget.idGuru,
-            'id_kelas': idKelas,
-            'id_mapel': idMapel,
-            'tahun_ajaran': tahun,
-            'semester': semester,
-          });
-        }
+
+    for (final p in pasangan) {
+      // Cek duplikat per pasangan
+      final cek = await supabase
+          .from('penugasan_guru')
+          .select('id')
+          .eq('id_guru', widget.idGuru)
+          .eq('id_kelas', p['kelas']!)
+          .eq('id_mapel', p['mapel']!)
+          .eq('tahun_ajaran', tahun)
+          .eq('semester', semester);
+
+      if (cek.isEmpty) {
+        dataInsert.add({
+          'id_guru': widget.idGuru,
+          'id_kelas': p['kelas'],
+          'id_mapel': p['mapel'],
+          'tahun_ajaran': tahun,
+          'semester': semester,
+        });
       }
     }
 

@@ -70,6 +70,7 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
     final nipCtrl = TextEditingController(text: guru?.nip ?? '');
     final namaCtrl = TextEditingController(text: guru?.namaLengkap ?? '');
     final emailCtrl = TextEditingController(text: guru?.email ?? '');
+    bool _isSaving = false;
 
     showDialog(
       context: context,
@@ -138,8 +139,11 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
                     return;
                   }
                 }
+                // tutup pop-up dulu biar animasi loadingnya keliatan
                 Navigator.pop(ctx);
 
+                // animasi loading
+                setState(() => _isLoading = true);
                 bool sukses;
                 if (isEdit) {
                   sukses = await _guruService.updateGuru(guru.idGuru!, {
@@ -152,7 +156,7 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
                   sukses = await _guruService.tambahGuru(
                     GuruModel(
                       idGuru: id,
-                      userId: id, // user_id tetap sinkron[cite: 1, 3]
+                      userId: id,
                       nip: nipCtrl.text,
                       namaLengkap: namaCtrl.text,
                       email: emailCtrl.text,
@@ -293,7 +297,7 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
                 color: Colors.redAccent,
               ),
               onPressed: () async {
-                // ✅ Dialog konfirmasi sebelum hapus
+                // Dialog konfirmasi sebelum hapus
                 final konfirmasi = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
