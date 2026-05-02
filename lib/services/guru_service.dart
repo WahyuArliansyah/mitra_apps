@@ -25,7 +25,7 @@ class GuruService {
     try {
       final String emailLogin = '${guru.nip}@mitra.com';
 
-      // ✅ Simpan access token & refresh token admin sebelum signUp
+      // Simpan access token & refresh token admin sebelum signUp
       final accessToken = supabase.auth.currentSession?.accessToken;
       final refreshToken = supabase.auth.currentSession?.refreshToken;
 
@@ -66,7 +66,7 @@ class GuruService {
           print('Error step insert/hash: $e');
         }
 
-        // ✅ Restore session admin dengan setSession langsung
+        // Restore session admin dengan setSession langsung
         if (accessToken != null && refreshToken != null) {
           await supabase.auth.setSession(refreshToken);
         }
@@ -83,10 +83,35 @@ class GuruService {
   // Update data guru
   Future<bool> updateGuru(String id, Map<String, dynamic> data) async {
     try {
+      // 1. Update tabel guru
       await supabase.from('guru').update(data).eq('id_guru', id);
+
+      // 2. Jika NIP berubah
+      if (data.containsKey('nip')) {
+        final nip = data['nip'];
+
+        // Hash password baru
+        final hashedPassword = await supabase.rpc(
+          'hash_password',
+          params: {'plain_password': nip},
+        );
+
+        // Update tabel pengguna
+        await supabase
+            .from('pengguna')
+            .update({'nim_nuptk': nip, 'kata_sandi': hashedPassword})
+            .eq('id', id);
+
+        // Update email di auth.users via RPC
+        await supabase.rpc(
+          'update_auth_email',
+          params: {'uid': id, 'new_email': '$nip@mitra.com'},
+        );
+      }
+
       return true;
     } catch (e) {
-      print('Error Update: $e');
+      print('Error Update Guru: $e');
       return false;
     }
   }
@@ -140,6 +165,34 @@ class GuruService {
       return null;
     } catch (e) {
       return 'Sistem';
+    }
+  }
+
+  // Ganti Password Guru (untuk guru yang sudah login)
+  Future<bool> gantiPassword(String passwordBaru) async {
+    try {
+      // 1. Update password di Supabase Auth (user yang sedang login)
+      await supabase.auth.updateUser(UserAttributes(password: passwordBaru));
+
+      // 2. Hash password baru
+      final hashedPassword = await supabase.rpc(
+        'hash_password',
+        params: {'plain_password': passwordBaru},
+      );
+
+      // 3. Update kata_sandi di tabel pengguna
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        await supabase
+            .from('pengguna')
+            .update({'kata_sandi': hashedPassword})
+            .eq('id', user.id);
+      }
+
+      return true;
+    } catch (e) {
+      print('Error Ganti Password: $e');
+      return false;
     }
   }
 }

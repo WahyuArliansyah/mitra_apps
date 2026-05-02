@@ -46,24 +46,35 @@ class SiswaService {
       final accessToken = supabase.auth.currentSession?.accessToken;
       final refreshToken = supabase.auth.currentSession?.refreshToken;
 
-      // 1. Daftarkan ke Supabase Auth (email = nis@mitra.com, password = nis)
+      // Daftarkan ke Supabase Auth
       final AuthResponse res = await supabase.auth.signUp(
         email: emailLogin,
         password: siswa.nis!,
-        data: {'nama_siswa': siswa.namaSiswa},
+        data: {'nama_lengkap': siswa.namaSiswa},
       );
 
       if (res.user != null) {
         final String uidBaru = res.user!.id;
 
         await Future.delayed(const Duration(milliseconds: 500));
-
         try {
-          // 2. Hash password via RPC
+          // 1. Hash password
           final hashedPassword = await supabase.rpc(
             'hash_password',
             params: {'plain_password': siswa.nis!},
           );
+          print('Hash berhasil: $hashedPassword');
+
+          // 2. Update pengguna yang sudah dibuat trigger (bukan insert!)
+          await supabase
+              .from('pengguna')
+              .update({
+                'nim_nuptk': siswa.nis,
+                'kata_sandi': hashedPassword,
+                'peran': 'siswa',
+              })
+              .eq('id', uidBaru);
+          print('Update pengguna berhasil');
 
           // 3. Insert ke tabel siswa
           await supabase.from('siswa').insert({
@@ -72,21 +83,18 @@ class SiswaService {
             'nama_siswa': siswa.namaSiswa,
             if (siswa.idKelas != null) 'id_kelas': siswa.idKelas,
           });
-
-          // 4. Update kata_sandi di tabel pengguna
-          await supabase
-              .from('pengguna')
-              .update({'kata_sandi': hashedPassword})
-              .eq('id', uidBaru);
+          print('Insert siswa berhasil');
         } catch (e) {
           print('Error step insert/hash: $e');
         }
-
-        // Restore session admin
-        if (accessToken != null && refreshToken != null) {
-          await supabase.auth.setSession(refreshToken);
+        try {
+          if (accessToken != null && refreshToken != null) {
+            await supabase.auth.setSession(refreshToken);
+          }
+        } catch (e) {
+          print('Restore session error: $e');
+          // Fallback: tidak perlu panic, admin akan redirect ke login
         }
-
         return true;
       }
       return false;
@@ -97,12 +105,37 @@ class SiswaService {
   }
 
   // Update data siswa
-  Future<bool> updateSiswa(String id, Map<String, dynamic> data) async {
+  Future<bool> updateSiswa(String idSiswa, Map<String, dynamic> data) async {
     try {
-      await supabase.from('siswa').update(data).eq('id_siswa', id);
+      // Update tabel siswa
+      await supabase.from('siswa').update(data).eq('id_siswa', idSiswa);
+
+      // Jika NIS berubah
+      if (data.containsKey('nis')) {
+        final nis = data['nis'];
+
+        // Hash password baru
+        final hashedPassword = await supabase.rpc(
+          'hash_password',
+          params: {'plain_password': nis},
+        );
+
+        // Update tabel pengguna
+        await supabase
+            .from('pengguna')
+            .update({'nim_nuptk': nis, 'kata_sandi': hashedPassword})
+            .eq('id', idSiswa);
+
+        // Update email di auth.users via RPC
+        await supabase.rpc(
+          'update_auth_email',
+          params: {'uid': idSiswa, 'new_email': '$nis@mitra.com'},
+        );
+      }
+
       return true;
     } catch (e) {
-      print('Error Update: $e');
+      print('Error Update Siswa: $e');
       return false;
     }
   }
@@ -110,29 +143,18 @@ class SiswaService {
   // Hapus Data Siswa
   Future<bool> hapusSiswa(String idSiswa) async {
     try {
-      // 1. Ambil uid dari auth (id_siswa = uid di auth)
-      final data = await supabase
-          .from('siswa')
-          .select('id_siswa')
-          .eq('id_siswa', idSiswa)
-          .single();
-
-      final userId = data['id_siswa'];
-
-      // 2. Hapus dari tabel siswa
+      // 1. Hapus dari tabel siswa
       await supabase.from('siswa').delete().eq('id_siswa', idSiswa);
 
-      // 3. Hapus dari tabel pengguna
-      if (userId != null) {
-        await supabase.from('pengguna').delete().eq('id', userId);
+      // 2. Hapus dari tabel pengguna
+      await supabase.from('pengguna').delete().eq('id', idSiswa);
 
-        // 4. Hapus dari Supabase Auth
-        await supabase.rpc('hapus_auth_user', params: {'uid': userId});
-      }
+      // 3. Hapus dari auth.users via RPC (sama seperti guru)
+      await supabase.rpc('hapus_auth_user', params: {'uid': idSiswa});
 
       return true;
     } catch (e) {
-      print('Error Delete: $e');
+      print('Error Hapus Siswa: $e');
       return false;
     }
   }
@@ -153,5 +175,31 @@ class SiswaService {
     }
   }
 
-  Future<Object?> getSemuaKelas() async {}
+  // Ganti Password Siswa
+  Future<bool> gantiPassword(String passwordBaru) async {
+    try {
+      // 1. Update password di Supabase Auth (user yang sedang login)
+      await supabase.auth.updateUser(UserAttributes(password: passwordBaru));
+
+      // 2. Hash password baru
+      final hashedPassword = await supabase.rpc(
+        'hash_password',
+        params: {'plain_password': passwordBaru},
+      );
+
+      // 3. Update kata_sandi di tabel pengguna
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        await supabase
+            .from('pengguna')
+            .update({'kata_sandi': hashedPassword})
+            .eq('id', user.id);
+      }
+
+      return true;
+    } catch (e) {
+      print('Error Ganti Password: $e');
+      return false;
+    }
+  }
 }

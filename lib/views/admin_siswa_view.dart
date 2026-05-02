@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/models/siswa_model.dart';
+import 'package:mitra_apps/services/siswa_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminSiswaView extends StatefulWidget {
@@ -10,6 +12,7 @@ class AdminSiswaView extends StatefulWidget {
 
 class _AdminSiswaViewState extends State<AdminSiswaView> {
   final supabase = Supabase.instance.client;
+  final _siswaService = SiswaService();
 
   List<Map<String, dynamic>> _listSiswa = [];
   List<Map<String, dynamic>> _filteredListSiswa = [];
@@ -68,7 +71,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     });
   }
 
-  // ── Helpers ─────────────────────────────────────────────
+  // Menampilkan Snackbar
   void _showSnackbar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -122,7 +125,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
         false;
   }
 
-  // ── Dialog Form ─────────────────────────────────────────
+  // Dialog Form
   void _tampilkanDialogForm({Map<String, dynamic>? siswa}) {
     final isEdit = siswa != null;
     final nisCtrl = TextEditingController(text: siswa?['nis'] ?? '');
@@ -211,36 +214,51 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                   _showSnackbar('Semua field wajib diisi!', isError: true);
                   return;
                 }
-                final data = {
-                  'nis': nisCtrl.text.trim(),
-                  'nama_siswa': namaCtrl.text.trim(),
-                  'id_kelas': idKelasTerpilih,
-                };
+
                 if (isEdit) {
-                  await supabase
-                      .from('siswa')
-                      .update(data)
-                      .eq('id_siswa', siswa!['id_siswa']);
+                  // Edit tetap langsung update tabel siswa
+                  await _siswaService.updateSiswa(siswa!['id_siswa'], {
+                    'nis': nisCtrl.text.trim(),
+                    'nama_siswa': namaCtrl.text.trim(),
+                    'id_kelas': idKelasTerpilih,
+                  });
+
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    _ambilDataSiswa();
+                    _showSnackbar('Data berhasil diperbarui.');
+                  }
                 } else {
+                  // ✅ Tambah baru lewat service agar Auth + hash password jalan
                   final cek = await supabase
                       .from('siswa')
                       .select('id_siswa')
                       .eq('nis', nisCtrl.text.trim());
+
                   if (cek.isNotEmpty) {
                     if (mounted)
                       _showSnackbar('NIS sudah digunakan!', isError: true);
                     return;
                   }
-                  await supabase.from('siswa').insert(data);
-                }
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  _ambilDataSiswa();
-                  _showSnackbar(
-                    isEdit
-                        ? 'Data berhasil diperbarui.'
-                        : 'Siswa berhasil ditambahkan.',
+
+                  final sukses = await _siswaService.tambahSiswa(
+                    SiswaModel(
+                      nis: nisCtrl.text.trim(),
+                      namaSiswa: namaCtrl.text.trim(),
+                      idKelas: idKelasTerpilih,
+                    ),
                   );
+
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    _ambilDataSiswa();
+                    _showSnackbar(
+                      sukses
+                          ? 'Siswa berhasil ditambahkan.'
+                          : 'Gagal menambahkan siswa.',
+                      isError: !sukses,
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -487,12 +505,19 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
               () async {
                 final yakin = await _konfirmasiHapus(siswa['nama_siswa']);
                 if (yakin && mounted) {
-                  await supabase
-                      .from('siswa')
-                      .delete()
-                      .eq('id_siswa', siswa['id_siswa']);
-                  _ambilDataSiswa();
-                  _showSnackbar('Data berhasil dihapus.');
+                  // ✅ Lewat service agar pengguna & auth ikut terhapus
+                  final sukses = await _siswaService.hapusSiswa(
+                    siswa['id_siswa'],
+                  );
+                  if (mounted) {
+                    _ambilDataSiswa();
+                    _showSnackbar(
+                      sukses
+                          ? 'Data berhasil dihapus.'
+                          : 'Gagal menghapus data.',
+                      isError: !sukses,
+                    );
+                  }
                 }
               },
             ),
