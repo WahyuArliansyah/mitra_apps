@@ -31,7 +31,11 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
   @override
   void initState() {
     super.initState();
-    _ambilTugas();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _ambilTugas();
+      }
+    });
   }
 
   Future<void> _ambilTugas() async {

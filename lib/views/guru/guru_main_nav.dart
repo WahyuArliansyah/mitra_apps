@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
 import 'package:mitra_apps/views/guru/guru_kelas_view.dart';
 import 'package:mitra_apps/views/guru/guru_rekap_nilai_view.dart';
-// import 'package:mitra_apps/views/guru/guru_rekap_nilai_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruMainNav extends StatefulWidget {
-  const GuruMainNav({super.key});
+  final String userId; // Menerima userId dari Auth, BUKAN idGuru
+  const GuruMainNav({super.key, required this.userId});
 
   @override
   State<GuruMainNav> createState() => _GuruMainNavState();
@@ -15,8 +15,10 @@ class GuruMainNav extends StatefulWidget {
 class _GuruMainNavState extends State<GuruMainNav> {
   int _currentIndex = 0;
   static const _primary = Color(0xFF0EA5E9);
+
   String _namaGuru = '';
   String _idGuru = '';
+  bool _isLoading = true; // Penahan layar (loading)
 
   @override
   void initState() {
@@ -25,23 +27,34 @@ class _GuruMainNavState extends State<GuruMainNav> {
   }
 
   Future<void> _ambilDataGuru() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
+    try {
+      // Cari data di tabel guru berdasarkan user_id dari Auth
       final data = await Supabase.instance.client
           .from('guru')
           .select('id_guru, nama_lengkap')
-          .eq('user_id', user.id)
+          .eq('user_id', widget.userId)
           .maybeSingle();
+
       if (data != null && mounted) {
         setState(() {
           _idGuru = data['id_guru'];
           _namaGuru = data['nama_lengkap'];
+          _isLoading = false; // Buka penahan layar setelah data didapat
         });
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
+    } catch (e) {
+      debugPrint('Error ambil data guru: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Widget _buildPage() {
+    if (_idGuru.isEmpty) {
+      return const Center(child: Text('Data profil guru tidak ditemukan.'));
+    }
+
     switch (_currentIndex) {
       case 0:
         return GuruDashboardView(idGuru: _idGuru, namaGuru: _namaGuru);
@@ -57,42 +70,57 @@ class _GuruMainNavState extends State<GuruMainNav> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildPage(),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _navItem(
-                  0,
-                  Icons.dashboard_outlined,
-                  Icons.dashboard_rounded,
-                  'Dashboard',
+      // Jika masih loading, tampilkan putaran (spinner)
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _primary))
+          : _buildPage(),
+
+      // Sembunyikan bottom bar jika masih loading
+      bottomNavigationBar: _isLoading
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _navItem(
+                        0,
+                        Icons.dashboard_outlined,
+                        Icons.dashboard_rounded,
+                        'Dashboard',
+                      ),
+                      _navItem(
+                        1,
+                        Icons.class_outlined,
+                        Icons.class_rounded,
+                        'Kelas',
+                      ),
+                      _navItem(
+                        2,
+                        Icons.bar_chart_outlined,
+                        Icons.bar_chart_rounded,
+                        'Rekap Nilai',
+                      ),
+                    ],
+                  ),
                 ),
-                _navItem(1, Icons.class_outlined, Icons.class_rounded, 'Kelas'),
-                _navItem(
-                  2,
-                  Icons.bar_chart_outlined,
-                  Icons.bar_chart_rounded,
-                  'Rekap Nilai',
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 

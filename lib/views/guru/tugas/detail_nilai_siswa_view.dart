@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/services/rekap_nilai_service.dart';
 import 'package:mitra_apps/widgets/ringkasan_nilai_card.dart';
 import 'package:mitra_apps/widgets/tabel_history_nilai.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DetailNilaiSiswaView extends StatefulWidget {
@@ -31,6 +33,9 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
   final supabase = Supabase.instance.client;
   static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
+  // variable untuk rekap nilai
+  final _rekapService = RekapNilaiService();
+  bool _isDownloading = false;
 
   List<Map<String, dynamic>> _historyNilai = [];
   bool _isLoading = true;
@@ -44,10 +49,125 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
     _ambilData();
   }
 
+  // fungsi untuk download rekap nilai ke excel
+  Future<void> _download() async {
+    if (_historyNilai.isEmpty) {
+      _showAlert(
+        icon: Icons.warning_amber_rounded,
+        iconColor: Colors.orange,
+        judul: 'Data Kosong',
+        pesan: 'Belum ada data nilai untuk diunduh!',
+      );
+      return;
+    }
+
+    setState(() => _isDownloading = true);
+
+    final path = await _rekapService.downloadRekapSiswa(
+      namaSiswa: widget.siswa['nama_siswa'],
+      nis: widget.siswa['nis'] ?? '-',
+      namaKelas: widget.namaKelas,
+      namaMapel: widget.namaMapel,
+      semester: widget.semester,
+      tahunAjaran: widget.tahunAjaran,
+      rataMateri: _rataMateri,
+      rataPraktikum: _rataPraktikum,
+      nilaiAkhir: _nilaiAkhir,
+      historyNilai: _historyNilai,
+    );
+
+    setState(() => _isDownloading = false);
+
+    if (!mounted) return;
+
+    if (path != null) {
+      _showAlert(
+        icon: Icons.check_circle_rounded,
+        iconColor: const Color(0xFF059669),
+        judul: 'Berhasil Diunduh!',
+        pesan: 'File tersimpan di:\n$path',
+        actionLabel: 'Buka File',
+        onAction: () => OpenFilex.open(path),
+      );
+    } else {
+      _showAlert(
+        icon: Icons.error_rounded,
+        iconColor: Colors.redAccent,
+        judul: 'Gagal',
+        pesan: 'Gagal mengunduh file. Coba lagi.',
+      );
+    }
+  }
+
+  void _showAlert({
+    required IconData icon,
+    required Color iconColor,
+    required String judul,
+    required String pesan,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: iconColor, size: 56),
+            const SizedBox(height: 12),
+            Text(
+              judul,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1F36),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              pesan,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          if (actionLabel != null && onAction != null)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                onAction();
+              },
+              child: Text(
+                actionLabel,
+                style: const TextStyle(
+                  color: Color(0xFF0EA5E9),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0EA5E9),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Ambil data nilai siswa dan rekap nilai akhir dari Supabase
   Future<void> _ambilData() async {
     setState(() => _isLoading = true);
     try {
-      // ✅ Pisah jadi 2 await terpisah
+      //
       final nilaiData = await supabase
           .from('nilai')
           .select(
@@ -117,6 +237,26 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // ✅ Tombol download
+          _isDownloading
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.download_rounded),
+                  tooltip: 'Download Excel',
+                  onPressed: _download,
+                ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
@@ -132,7 +272,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
                     _buildInfoSiswa(inisial),
                     const SizedBox(height: 16),
 
-                    // ✅ Widget ringkasan nilai
+                    // Widget ringkasan nilai
                     RingkasanNilaiCard(
                       rataMateri: _rataMateri,
                       rataPraktikum: _rataPraktikum,
@@ -140,7 +280,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ✅ Widget tabel history
+                    // Widget tabel history
                     TabelHistoryNilai(historyNilai: _historyNilai),
                     const SizedBox(height: 20),
                   ],

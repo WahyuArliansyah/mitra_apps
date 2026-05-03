@@ -35,15 +35,32 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   bool _isLoading = false;
   bool _isUploading = false;
 
+  // ✅ Logika visibilitas
+  // File lampiran tampil HANYA jika: teori + upload
+  bool get _tampilFile => _typeTugas == 'teori' && _metode == 'upload';
+
+  // Metode penilaian tampil HANYA jika: teori
+  // Praktikum otomatis = manual
+  bool get _tampilMetode => _typeTugas == 'teori';
+
+  // Deadline tampil HANYA jika: teori + upload
+  bool get _tampilDeadline => _typeTugas == 'teori' && _metode == 'upload';
+
   @override
   void initState() {
     super.initState();
     _ambilData();
   }
 
+  @override
+  void dispose() {
+    _judulCtrl.dispose();
+    _deskripsiCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _ambilData() async {
     try {
-      // Ambil penugasan guru untuk filter kelas & mapel yang diajar
       final penugasan = await supabase
           .from('penugasan_guru')
           .select(
@@ -54,8 +71,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       if (!mounted) return;
       setState(() {
         _penugasanGuru = List<Map<String, dynamic>>.from(penugasan);
-
-        // Ambil kelas unik dari penugasan
         final kelasMap = <String, Map<String, dynamic>>{};
         for (final p in _penugasanGuru) {
           final k = p['kelas'];
@@ -69,7 +84,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   }
 
   void _updateMapel() {
-    // Filter mapel berdasarkan kelas terpilih
     final mapelMap = <String, Map<String, dynamic>>{};
     for (final p in _penugasanGuru) {
       if (p['kelas']?['id'].toString() == _idKelasTerpilih) {
@@ -81,6 +95,67 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       _listMapel = mapelMap.values.toList();
       _idMapelTerpilih = null;
     });
+  }
+
+  void _onTypeTugasChanged(String type) {
+    setState(() {
+      _typeTugas = type;
+      // Praktikum otomatis pakai manual & reset file
+      if (type == 'praktikum') {
+        _metode = 'manual';
+        _fileTerpilih = null;
+        _deadline = null;
+      } else {
+        _metode = 'upload';
+      }
+    });
+  }
+
+  void _onMetodeChanged(String metode) {
+    setState(() {
+      _metode = metode;
+      // Jika ganti ke manual, reset file & deadline
+      if (metode == 'manual') {
+        _fileTerpilih = null;
+        _deadline = null;
+      }
+    });
+  }
+
+  Future<void> _kirimNotifikasi(String idTugas) async {
+    try {
+      // Ambil semua siswa di kelas yang dipilih
+      final siswaList = await supabase
+          .from('siswa')
+          .select('id_siswa')
+          .eq('id_kelas', _idKelasTerpilih!);
+
+      if (siswaList.isEmpty) return;
+
+      // Ambil nama mapel untuk isi notifikasi
+      final namaMapel = _listMapel.firstWhere(
+        (m) => m['id'].toString() == _idMapelTerpilih,
+        orElse: () => {'nama_mapel': 'Mata Pelajaran'},
+      )['nama_mapel'];
+
+      // Insert notifikasi untuk setiap siswa
+      final notifList = (siswaList as List)
+          .map(
+            (s) => {
+              'id_siswa': s['id_siswa'],
+              'judul': 'Tugas Baru: ${_judulCtrl.text.trim()}',
+              'pesan':
+                  'Guru telah memberikan tugas baru pada mata pelajaran $namaMapel. '
+                  'Tenggat waktu: ${_deadline != null ? '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}' : '-'}',
+              'is_read': false,
+            },
+          )
+          .toList();
+
+      await supabase.from('notifikasi').insert(notifList);
+    } catch (e) {
+      debugPrint('Error kirim notifikasi: $e');
+    }
   }
 
   Future<void> _pilihFile() async {
@@ -96,16 +171,13 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   Future<String?> _uploadFile() async {
     if (_fileTerpilih == null) return null;
     setState(() => _isUploading = true);
-
     try {
       final file = File(_fileTerpilih!.path!);
       final fileName =
           '${DateTime.now().millisecondsSinceEpoch}_${_fileTerpilih!.name}';
       final path = 'tugas/$fileName';
-
       await supabase.storage.from('tugas-files').upload(path, file);
-      final url = supabase.storage.from('tugas-files').getPublicUrl(path);
-      return url;
+      return supabase.storage.from('tugas-files').getPublicUrl(path);
     } catch (e) {
       debugPrint('Upload error: $e');
       return null;
@@ -122,25 +194,41 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    if (_tampilDeadline && _deadline == null) {
+      _showSnackbar('Tenggat waktu wajib diisi!', isError: true);
+      return;
+    }
 
+    setState(() => _isLoading = true);
     try {
       String? urlFile;
-      if (_fileTerpilih != null) urlFile = await _uploadFile();
+      if (_tampilFile && _fileTerpilih != null) {
+        urlFile = await _uploadFile();
+      }
 
-      await supabase.from('tugas').insert({
-        'id_guru': widget.idGuru,
-        'id_kelas': _idKelasTerpilih,
-        'id_mapel': _idMapelTerpilih,
-        'judul_tugas': _judulCtrl.text.trim(),
-        'deskripsi': _deskripsiCtrl.text.trim(),
-        'url_file_materi': urlFile,
-        'type_tugas': _typeTugas,
-        'metode': _metode,
-        'semester': _semester,
-        'tahun_ajaran': _tahunAjaran,
-        'tenggat_waktu': _deadline?.toIso8601String(),
-      });
+      // Insert tugas dan ambil ID nya
+      final result = await supabase
+          .from('tugas')
+          .insert({
+            'id_guru': widget.idGuru,
+            'id_kelas': _idKelasTerpilih,
+            'id_mapel': _idMapelTerpilih,
+            'judul_tugas': _judulCtrl.text.trim(),
+            'deskripsi': _deskripsiCtrl.text.trim(),
+            'url_file_materi': urlFile,
+            'type_tugas': _typeTugas,
+            'metode': _metode,
+            'semester': _semester,
+            'tahun_ajaran': _tahunAjaran,
+            'tenggat_waktu': _deadline?.toIso8601String(),
+          })
+          .select('id')
+          .single();
+
+      // Kirim notifikasi hanya jika teori + upload
+      if (_typeTugas == 'teori' && _metode == 'upload') {
+        await _kirimNotifikasi(result['id']);
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -201,14 +289,14 @@ class _BuatTugasViewState extends State<BuatTugasView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Judul
+            // ── Judul ──
             TextField(
               controller: _judulCtrl,
               decoration: _inputDeco('Judul Tugas', Icons.title_rounded),
             ),
             const SizedBox(height: 16),
 
-            // Deskripsi
+            // ── Deskripsi ──
             TextField(
               controller: _deskripsiCtrl,
               maxLines: 3,
@@ -219,7 +307,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Type tugas
+            // Milih tipe tugas
             _sectionLabel('Tipe Tugas'),
             const SizedBox(height: 8),
             Row(
@@ -230,7 +318,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     icon: Icons.menu_book_rounded,
                     isActive: _typeTugas == 'teori',
                     color: _primary,
-                    onTap: () => setState(() => _typeTugas = 'teori'),
+                    onTap: () => _onTypeTugasChanged('teori'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -240,42 +328,79 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     icon: Icons.science_rounded,
                     isActive: _typeTugas == 'praktikum',
                     color: const Color(0xFFD97706),
-                    onTap: () => setState(() => _typeTugas = 'praktikum'),
+                    onTap: () => _onTypeTugasChanged('praktikum'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
 
-            // Metode penilaian
-            _sectionLabel('Metode Penilaian'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _toggleBtn(
-                    label: 'Siswa Upload',
-                    icon: Icons.upload_file_rounded,
-                    isActive: _metode == 'upload',
-                    color: const Color(0xFF059669),
-                    onTap: () => setState(() => _metode = 'upload'),
+            // Jika praktikum, tampilkan info tambahan
+            if (_typeTugas == 'praktikum') ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3E0),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFD97706).withOpacity(0.3),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _toggleBtn(
-                    label: 'Input Manual',
-                    icon: Icons.edit_note_rounded,
-                    isActive: _metode == 'manual',
-                    color: const Color(0xFF7C3AED),
-                    onTap: () => setState(() => _metode = 'manual'),
-                  ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Color(0xFFD97706),
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tugas praktikum dinilai secara manual oleh guru.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
+
             const SizedBox(height: 16),
 
-            // Kelas
+            // Memilih metode penilaian (hanya untuk teori)
+            if (_tampilMetode) ...[
+              _sectionLabel('Metode Penilaian'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _toggleBtn(
+                      label: 'Siswa Upload',
+                      icon: Icons.upload_file_rounded,
+                      isActive: _metode == 'upload',
+                      color: const Color(0xFF059669),
+                      onTap: () => _onMetodeChanged('upload'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _toggleBtn(
+                      label: 'Input Manual',
+                      icon: Icons.edit_note_rounded,
+                      isActive: _metode == 'manual',
+                      color: const Color(0xFF7C3AED),
+                      onTap: () => _onMetodeChanged('manual'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Milih kelas
             DropdownButtonFormField<String>(
               value: _idKelasTerpilih,
               decoration: _inputDeco('Pilih Kelas', Icons.class_rounded),
@@ -288,7 +413,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                       child: Text(
                         '${k['nama_kelas']} - ${k['jurusan']}',
                         overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
                     ),
                   )
@@ -300,7 +424,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Mapel (filter dari kelas terpilih)
+            // Mapel disesuaikan dengan kelas yang dipilih
             DropdownButtonFormField<String>(
               value: _idMapelTerpilih,
               decoration: _inputDeco(
@@ -308,6 +432,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                 Icons.menu_book_rounded,
               ),
               hint: const Text('Pilih mata pelajaran'),
+              isExpanded: true,
               items: _listMapel
                   .map(
                     (m) => DropdownMenuItem(
@@ -315,7 +440,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                       child: Text(
                         m['nama_mapel'],
                         overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
                     ),
                   )
@@ -324,30 +448,27 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Semester & Tahun Ajaran
-            // Semester & Tahun Ajaran
+            // Milih semester dan tahun ajaran
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _semester,
+                    isExpanded: true,
                     decoration: _inputDeco('Semester', Icons.book_rounded),
-                    isExpanded: true, // 1. TAMBAHKAN INI DI SINI
                     items: const [
                       DropdownMenuItem(
                         value: '1',
                         child: Text(
                           'Semester 1',
-                          overflow:
-                              TextOverflow.ellipsis, // 2. TAMBAHKAN INI JUGA
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       DropdownMenuItem(
                         value: '2',
                         child: Text(
                           'Semester 2',
-                          overflow:
-                              TextOverflow.ellipsis, // 2. TAMBAHKAN INI JUGA
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -358,19 +479,19 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                 Expanded(
                   child: TextField(
                     onChanged: (v) => _tahunAjaran = v,
+                    controller: TextEditingController(text: _tahunAjaran),
                     decoration: _inputDeco(
                       'Tahun Ajaran',
                       Icons.calendar_today_rounded,
                     ),
-                    controller: TextEditingController(text: _tahunAjaran),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // Deadline (hanya jika metode upload)
-            if (_metode == 'upload') ...[
+            // ── Deadline (hanya teori + upload) ──
+            if (_tampilDeadline) ...[
               _sectionLabel('Tenggat Waktu'),
               const SizedBox(height: 8),
               GestureDetector(
@@ -381,7 +502,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
-                  if (picked != null) {
+                  if (picked != null && mounted) {
                     final time = await showTimePicker(
                       context: context,
                       initialTime: TimeOfDay.now(),
@@ -407,11 +528,19 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(
+                      color: _deadline != null
+                          ? _primary
+                          : Colors.grey.shade200,
+                      width: _deadline != null ? 2 : 1,
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time_rounded, color: _primary),
+                      Icon(
+                        Icons.access_time_rounded,
+                        color: _deadline != null ? _primary : Colors.grey,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -423,10 +552,17 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                                 ? Colors.grey
                                 : Colors.black87,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
                       ),
+                      if (_deadline != null)
+                        GestureDetector(
+                          onTap: () => setState(() => _deadline = null),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.grey,
+                            size: 18,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -434,62 +570,66 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               const SizedBox(height: 16),
             ],
 
-            // Upload file
-            _sectionLabel('File Lampiran (opsional)'),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pilihFile,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _fileTerpilih != null
-                        ? _primary
-                        : Colors.grey.shade200,
-                    width: _fileTerpilih != null ? 2 : 1,
+            // File lampiran (hanya teori + upload)
+            if (_tampilFile) ...[
+              _sectionLabel('File Lampiran (opsional)'),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pilihFile,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _fileTerpilih != null
+                          ? _primary
+                          : Colors.grey.shade200,
+                      width: _fileTerpilih != null ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _fileTerpilih != null
+                            ? Icons.insert_drive_file_rounded
+                            : Icons.attach_file_rounded,
+                        color: _fileTerpilih != null ? _primary : Colors.grey,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _fileTerpilih != null
+                              ? _fileTerpilih!.name
+                              : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
+                          style: TextStyle(
+                            color: _fileTerpilih != null
+                                ? Colors.black87
+                                : Colors.grey,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (_fileTerpilih != null)
+                        GestureDetector(
+                          onTap: () => setState(() => _fileTerpilih = null),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.grey,
+                            size: 18,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _fileTerpilih != null
-                          ? Icons.insert_drive_file_rounded
-                          : Icons.attach_file_rounded,
-                      color: _fileTerpilih != null ? _primary : Colors.grey,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _fileTerpilih != null
-                            ? _fileTerpilih!.name
-                            : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
-                        style: TextStyle(
-                          color: _fileTerpilih != null
-                              ? Colors.black87
-                              : Colors.grey,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (_fileTerpilih != null)
-                      GestureDetector(
-                        onTap: () => setState(() => _fileTerpilih = null),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.grey,
-                          size: 18,
-                        ),
-                      ),
-                  ],
-                ),
               ),
-            ),
-            const SizedBox(height: 28),
+              const SizedBox(height: 16),
+            ],
 
-            // Tombol simpan
+            const SizedBox(height: 12),
+
+            // Style tombol simpan
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

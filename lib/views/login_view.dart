@@ -98,7 +98,9 @@ class _LoginViewState extends State<LoginView> {
           } else if (peran == 'guru') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const GuruMainNav()),
+              MaterialPageRoute(
+                builder: (context) => GuruMainNav(userId: userId),
+              ),
             );
           } else if (peran == 'siswa') {
             Navigator.pushReplacement(

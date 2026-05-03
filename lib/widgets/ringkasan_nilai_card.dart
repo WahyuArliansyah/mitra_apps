@@ -47,7 +47,7 @@ class RingkasanNilaiCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _item(
-                  'Rata Materi',
+                  'Rata-rata Teori',
                   rataMateri.toStringAsFixed(1),
                   '(Bobot 30%)',
                   _primary,
@@ -57,7 +57,7 @@ class RingkasanNilaiCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _item(
-                  'Rata Praktikum',
+                  'Rata-rata Praktikum',
                   rataPraktikum.toStringAsFixed(1),
                   '(Bobot 70%)',
                   const Color(0xFFD97706),

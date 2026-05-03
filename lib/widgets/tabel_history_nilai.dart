@@ -149,7 +149,7 @@ class TabelHistoryNilai extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isPraktikum ? 'Praktikum' : 'Materi',
+                  isPraktikum ? 'Praktikum' : 'Teori',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,

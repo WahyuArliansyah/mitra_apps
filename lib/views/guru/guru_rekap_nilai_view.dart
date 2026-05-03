@@ -32,6 +32,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
     _ambilPenugasan();
   }
 
+  // ambil penugasan guru untuk dropdown
   Future<void> _ambilPenugasan() async {
     if (widget.idGuru.isEmpty) return;
     setState(() => _isLoadingPenugasan = true);
@@ -52,6 +53,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
     }
   }
 
+  // ambil rekap nilai per penugasan terpilih
   Future<void> _ambilRekap() async {
     if (_penugasanTerpilih == null) return;
     setState(() => _isLoadingRekap = true);
