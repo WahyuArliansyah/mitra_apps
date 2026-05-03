@@ -77,7 +77,7 @@ class _SplashScreenViewState extends State<SplashScreenView>
           } else if (peran == 'guru') {
             destination = const GuruMainNav();
           } else if (peran == 'siswa') {
-            destination = const SiswaDashboardView();
+            destination = SiswaDashboardView(idSiswa: session.user.id);
           }
         } catch (e) {
           destination = const LoginView();

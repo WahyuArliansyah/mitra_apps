@@ -104,7 +104,7 @@ class _LoginViewState extends State<LoginView> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const SiswaDashboardView(),
+                builder: (context) => SiswaDashboardView(idSiswa: userId),
               ),
             );
           } else {

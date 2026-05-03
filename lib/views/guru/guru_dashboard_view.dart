@@ -35,7 +35,13 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
   }
 
   Future<void> _ambilTugas() async {
-    if (widget.idGuru.isEmpty) return;
+    // Jika ID kosong, pastikan loading mati dan hentikan proses
+    if (widget.idGuru.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    // Nyalakan loading sebelum menarik data
     setState(() => _isLoading = true);
     try {
       final data = await supabase
@@ -49,6 +55,10 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
         _isLoading = false;
       });
     } catch (e) {
+      // Menangkap dan mencetak error
+      debugPrint('Error ambil data tugas: $e');
+
+      // Matikan loading jika terjadi error
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
@@ -68,7 +78,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
         color: _primary,
         child: CustomScrollView(
           slivers: [
-            // ✅ AppBar dari widget
+            // AppBar dari widget
             GuruAppBar(namaGuru: widget.namaGuru),
 
             SliverToBoxAdapter(
@@ -82,7 +92,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
                     const SizedBox(height: 20),
                     // Label
                     const Text(
-                      'Daftar Tugas & Materi',
+                      'Daftar Tugas',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -167,8 +177,8 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
 
   Widget _buildStatRow() {
     final totalTugas = _listTugas.length;
-    final totalMateri = _listTugas
-        .where((t) => t['type_tugas'] == 'materi')
+    final totalTeori = _listTugas
+        .where((t) => t['type_tugas'] == 'teori')
         .length;
     final totalPraktikum = _listTugas
         .where((t) => t['type_tugas'] == 'praktikum')
@@ -188,8 +198,8 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
         const SizedBox(width: 10),
         Expanded(
           child: _statCard(
-            'Materi',
-            totalMateri,
+            'Teori',
+            totalTeori,
             Icons.menu_book_rounded,
             const Color(0xFF059669),
             const Color(0xFFE6FAF5),
@@ -263,10 +273,10 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: ['Semua', 'materi', 'praktikum'].map((f) {
+        children: ['Semua', 'teori', 'praktikum'].map((f) {
           final isSelected = _filterType == f;
-          final label = f == 'materi'
-              ? 'Materi'
+          final label = f == 'teori'
+              ? 'Teori'
               : f == 'praktikum'
               ? 'Praktikum'
               : 'Semua';

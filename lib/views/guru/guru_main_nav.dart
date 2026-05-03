@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
 import 'package:mitra_apps/views/guru/guru_kelas_view.dart';
+import 'package:mitra_apps/views/guru/guru_rekap_nilai_view.dart';
 // import 'package:mitra_apps/views/guru/guru_rekap_nilai_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -46,8 +47,8 @@ class _GuruMainNavState extends State<GuruMainNav> {
         return GuruDashboardView(idGuru: _idGuru, namaGuru: _namaGuru);
       case 1:
         return GuruKelasView(idGuru: _idGuru);
-      // case 2:
-      //   return GuruRekapNilaiView(idGuru: _idGuru);
+      case 2:
+        return GuruRekapNilaiView(idGuru: _idGuru);
       default:
         return GuruDashboardView(idGuru: _idGuru, namaGuru: _namaGuru);
     }

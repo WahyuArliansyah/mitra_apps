@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class InputNilaiView extends StatefulWidget {
-  final Map<String, dynamic> tugas;
   final Map<String, dynamic> siswa;
+  final Map<String, dynamic> tugas;
   final Map<String, dynamic>? pengumpulan;
+  final Map<String, dynamic>? nilaiExisting;
+  final String idGuru;
 
   const InputNilaiView({
     super.key,
-    required this.tugas,
     required this.siswa,
+    required this.tugas,
+    required this.idGuru,
     this.pengumpulan,
+    this.nilaiExisting,
   });
 
   @override
@@ -20,137 +23,159 @@ class InputNilaiView extends StatefulWidget {
 
 class _InputNilaiViewState extends State<InputNilaiView> {
   final supabase = Supabase.instance.client;
-  final _nilaiCtrl = TextEditingController();
-  final _feedbackCtrl = TextEditingController();
+  static const _primary = Color(0xFF0EA5E9);
+
+  late TextEditingController _nilaiCtrl;
+  late TextEditingController _umpanBalikCtrl;
   bool _isLoading = false;
 
-  static const _primary = Color(0xFF1A3A8F);
-  static const _orange = Color(0xFFF97316);
-
-  double get _nilaiPreview {
-    final v = double.tryParse(_nilaiCtrl.text) ?? 0;
-    return v.clamp(0, 100);
+  @override
+  void initState() {
+    super.initState();
+    _nilaiCtrl = TextEditingController(
+      text: widget.nilaiExisting?['nilai']?.toString() ?? '',
+    );
+    _umpanBalikCtrl = TextEditingController(
+      text: widget.nilaiExisting?['umpan_balik'] ?? '',
+    );
   }
 
-  Color _nilaiColor(double nilai) {
-    if (nilai >= 80) return Colors.green;
-    if (nilai >= 65) return _orange;
-    return Colors.red;
+  @override
+  void dispose() {
+    _nilaiCtrl.dispose();
+    _umpanBalikCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _simpanNilai() async {
-    final nilaiInput = double.tryParse(_nilaiCtrl.text.trim());
-    if (nilaiInput == null || nilaiInput < 0 || nilaiInput > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Masukkan nilai antara 0 - 100'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    final nilaiStr = _nilaiCtrl.text.trim();
+    if (nilaiStr.isEmpty) {
+      _showSnackbar('Nilai wajib diisi!', isError: true);
+      return;
+    }
+
+    final nilai = double.tryParse(nilaiStr);
+    if (nilai == null || nilai < 0 || nilai > 100) {
+      _showSnackbar('Nilai harus antara 0 - 100!', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final guruId = supabase.auth.currentUser!.id;
+      final isEdit = widget.nilaiExisting != null;
       final typePenilaian = widget.pengumpulan != null
           ? 'dari_upload'
           : 'manual';
 
-      await supabase.from('nilai').upsert({
-        'id_tugas': widget.tugas['id'],
-        'id_siswa': widget.siswa['id_siswa'],
-        'id_pengumpulan': widget.pengumpulan?['id'],
-        'nilai': nilaiInput,
-        'type_penilaian': typePenilaian,
-        'umpan_balik': _feedbackCtrl.text.trim().isEmpty
-            ? null
-            : _feedbackCtrl.text.trim(),
-        'id_guru_penilai': guruId,
-      }, onConflict: 'id_tugas,id_siswa');
-
-      // Update status pengumpulan jika ada
-      if (widget.pengumpulan != null) {
+      if (isEdit) {
+        // Update nilai yang sudah ada
         await supabase
-            .from('pengumpulan')
-            .update({'status_pengumpulan': 'dinilai'})
-            .eq('id', widget.pengumpulan!['id']);
+            .from('nilai')
+            .update({
+              'nilai': nilai,
+              'umpan_balik': _umpanBalikCtrl.text.trim(),
+              'dinilai_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', widget.nilaiExisting!['id']);
+      } else {
+        // Insert nilai baru
+        await supabase.from('nilai').insert({
+          'id_tugas': widget.tugas['id'],
+          'id_siswa': widget.siswa['id_siswa'],
+          'id_pengumpulan': widget.pengumpulan?['id'],
+          'nilai': nilai,
+          'type_penilaian': typePenilaian,
+          'umpan_balik': _umpanBalikCtrl.text.trim(),
+          'id_guru_penilai': widget.idGuru,
+          'dinilai_at': DateTime.now().toIso8601String(),
+        });
+
+        // Update status pengumpulan jika ada
+        if (widget.pengumpulan != null) {
+          await supabase
+              .from('pengumpulan')
+              .update({'status_pengumpulan': 'dinilai'})
+              .eq('id', widget.pengumpulan!['id']);
+        }
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nilai berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
         Navigator.pop(context);
+        _showSnackbar('Nilai berhasil disimpan!');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal simpan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showSnackbar('Gagal menyimpan nilai: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  void dispose() {
-    _nilaiCtrl.dispose();
-    _feedbackCtrl.dispose();
-    super.dispose();
+  void _showSnackbar(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final siswa = widget.siswa;
-    final tugas = widget.tugas;
-    final pengumpulan = widget.pengumpulan;
-    final isUpload = pengumpulan != null;
-    final isMateri = tugas['type_tugas'] == 'materi';
+    final isPraktikum = widget.tugas['type_tugas'] == 'praktikum';
+    final isEdit = widget.nilaiExisting != null;
+    final inisial = widget.siswa['nama_siswa'].toString().isNotEmpty
+        ? widget.siswa['nama_siswa']
+              .toString()
+              .trim()
+              .split(' ')
+              .map((e) => e[0])
+              .take(2)
+              .join()
+        : '?';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
-        title: const Text(
-          'Input Nilai',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Text(
+          isEdit ? 'Edit Nilai' : 'Beri Nilai',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Info Siswa ──────────────────────────
-            _card(
+            // Info siswa
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFFEEF2FF),
+                    radius: 28,
+                    backgroundColor: const Color(0xFFE0F2FE),
                     child: Text(
-                      (siswa['nama_siswa'] as String)
-                          .trim()
-                          .split(' ')
-                          .map((e) => e[0])
-                          .take(2)
-                          .join()
-                          .toUpperCase(),
+                      inisial.toUpperCase(),
                       style: const TextStyle(
                         color: _primary,
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -160,19 +185,17 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          siswa['nama_siswa'],
+                          widget.siswa['nama_siswa'],
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Color(0xFF1A1F36),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          'NIS: ${siswa['nis'] ?? '-'}',
+                          widget.siswa['nis'] ?? '-',
                           style: TextStyle(
-                            fontSize: 12,
                             color: Colors.grey.shade500,
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -181,300 +204,217 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-
-            // ── Info Tugas ──────────────────────────
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Info tugas
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isPraktikum
+                    ? const Color(0xFFFEF3E0)
+                    : const Color(0xFFE0F2FE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  const Text(
-                    'Detail Tugas',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF1A1F36),
-                    ),
+                  Icon(
+                    isPraktikum
+                        ? Icons.science_rounded
+                        : Icons.menu_book_rounded,
+                    color: isPraktikum ? const Color(0xFFD97706) : _primary,
+                    size: 20,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    tugas['judul_tugas'] ?? '-',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.tugas['judul_tugas'] ?? '-',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '${isPraktikum ? 'Praktikum' : 'Materi'} • Bobot ${isPraktikum ? '70%' : '30%'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _smallBadge(
-                        isMateri ? 'Materi' : 'Praktikum',
-                        isMateri ? _primary : Colors.orange.shade800,
-                        isMateri
-                            ? const Color(0xFFEEF2FF)
-                            : const Color(0xFFFFF3E0),
-                      ),
-                      const SizedBox(width: 6),
-                      _smallBadge(
-                        isUpload ? 'Dari Upload' : 'Input Manual',
-                        isUpload ? Colors.green.shade800 : Colors.pink.shade800,
-                        isUpload
-                            ? const Color(0xFFE8F5E9)
-                            : const Color(0xFFFCE4EC),
-                      ),
-                      const SizedBox(width: 6),
-                      _smallBadge(
-                        'Bobot ${isMateri ? '30%' : '70%'}',
-                        Colors.purple.shade800,
-                        Colors.purple.shade50,
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-
-            // ── File upload siswa (jika ada) ────────
-            if (isUpload && pengumpulan['url_file_bukti'] != null) ...[
-              _card(
+            // Bukti pengumpulan (jika ada)
+            if (widget.pengumpulan != null) ...[
+              const Text(
+                'Bukti Pengumpulan',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'File Pengumpulan Siswa',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Color(0xFF1A1F36),
+                    if (widget.pengumpulan!['url_file_bukti'] != null)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.attach_file_rounded,
+                            color: _primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'File terlampir',
+                              style: const TextStyle(
+                                color: _primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (pengumpulan['catatan_siswa'] != null) ...[
+                    if (widget.pengumpulan!['catatan_siswa'] != null &&
+                        widget.pengumpulan!['catatan_siswa']
+                            .toString()
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 8),
                       Text(
-                        'Catatan: ${pengumpulan['catatan_siswa']}',
+                        'Catatan: ${widget.pengumpulan!['catatan_siswa']}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
-                      const SizedBox(height: 8),
                     ],
-                    GestureDetector(
-                      onTap: () async {
-                        final url = Uri.parse(pengumpulan['url_file_bukti']);
-                        if (await canLaunchUrl(url)) {
-                          launchUrl(url, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.open_in_new_rounded,
-                              color: _primary,
-                              size: 18,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Buka File Tugas Siswa',
-                              style: TextStyle(
-                                color: _primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Dikumpulkan: ${_formatTanggal(widget.pengumpulan!['waktu_pengumpulan'])}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade400,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
             ],
 
-            // ── Input Nilai ─────────────────────────
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nilai (0 - 100)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF1A1F36),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Preview nilai besar
-                  Center(
-                    child: AnimatedBuilder(
-                      animation: _nilaiCtrl,
-                      builder: (_, __) {
-                        final n = _nilaiPreview;
-                        return Text(
-                          _nilaiCtrl.text.isEmpty ? '-' : n.toStringAsFixed(0),
-                          style: TextStyle(
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            color: _nilaiCtrl.text.isEmpty
-                                ? Colors.grey.shade300
-                                : _nilaiColor(n),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextField(
-                    controller: _nilaiCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Masukkan nilai...',
-                      prefixIcon: const Icon(
-                        Icons.grade_rounded,
-                        color: _primary,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _primary, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 14,
-                        horizontal: 12,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Umpan balik
-                  const Text(
-                    'Umpan Balik (opsional)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF1A1F36),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _feedbackCtrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Tulis komentar untuk siswa...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _primary, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.all(14),
-                    ),
-                  ),
-                ],
+            // Input nilai
+            const Text(
+              'Nilai (0 - 100)',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nilaiCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Masukkan nilai...',
+                prefixIcon: const Icon(Icons.grade_rounded, color: _primary),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _primary, width: 2),
+                ),
               ),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
+            // Umpan balik
+            const Text(
+              'Umpan Balik (opsional)',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _umpanBalikCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Tulis komentar atau masukan untuk siswa...',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _primary, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
 
-            // ── Tombol Simpan ───────────────────────
+            // Tombol simpan
             SizedBox(
               width: double.infinity,
-              height: 52,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _simpanNilai,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _orange,
-                  disabledBackgroundColor: _orange.withOpacity(0.5),
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 2,
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 22,
-                        height: 22,
+                        height: 20,
+                        width: 20,
                         child: CircularProgressIndicator(
                           color: Colors.white,
-                          strokeWidth: 2.5,
+                          strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'SIMPAN NILAI',
-                        style: TextStyle(
+                    : Text(
+                        isEdit ? 'Simpan Perubahan' : 'Simpan Nilai',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.1,
                         ),
                       ),
               ),
             ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _card({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _smallBadge(String label, Color text, Color bg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: text,
-        ),
-      ),
-    );
+  String _formatTanggal(String? tanggal) {
+    if (tanggal == null) return '-';
+    final dt = DateTime.parse(tanggal);
+    return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }

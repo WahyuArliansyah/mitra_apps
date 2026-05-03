@@ -21,7 +21,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
   String? _idKelasTerpilih;
   String? _idMapelTerpilih;
-  String _typeTugas = 'materi';
+  String _typeTugas = 'teori';
   String _metode = 'upload';
   String _semester = '1';
   String _tahunAjaran = '${DateTime.now().year}/${DateTime.now().year + 1}';
@@ -189,7 +189,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
         title: const Text(
-          'Buat Tugas / Materi',
+          'Buat Tugas',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _primary,
@@ -204,10 +204,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             // Judul
             TextField(
               controller: _judulCtrl,
-              decoration: _inputDeco(
-                'Judul Tugas / Materi',
-                Icons.title_rounded,
-              ),
+              decoration: _inputDeco('Judul Tugas', Icons.title_rounded),
             ),
             const SizedBox(height: 16),
 
@@ -229,11 +226,11 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               children: [
                 Expanded(
                   child: _toggleBtn(
-                    label: 'Materi',
+                    label: 'Teori',
                     icon: Icons.menu_book_rounded,
-                    isActive: _typeTugas == 'materi',
+                    isActive: _typeTugas == 'teori',
                     color: _primary,
-                    onTap: () => setState(() => _typeTugas = 'materi'),
+                    onTap: () => setState(() => _typeTugas = 'teori'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -283,11 +280,16 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               value: _idKelasTerpilih,
               decoration: _inputDeco('Pilih Kelas', Icons.class_rounded),
               hint: const Text('Pilih kelas'),
+              isExpanded: true,
               items: _listKelas
                   .map(
                     (k) => DropdownMenuItem(
                       value: k['id'].toString(),
-                      child: Text('${k['nama_kelas']} - ${k['jurusan']}'),
+                      child: Text(
+                        '${k['nama_kelas']} - ${k['jurusan']}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   )
                   .toList(),
@@ -310,7 +312,11 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                   .map(
                     (m) => DropdownMenuItem(
                       value: m['id'].toString(),
-                      child: Text(m['nama_mapel']),
+                      child: Text(
+                        m['nama_mapel'],
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   )
                   .toList(),
@@ -319,15 +325,31 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             const SizedBox(height: 16),
 
             // Semester & Tahun Ajaran
+            // Semester & Tahun Ajaran
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _semester,
                     decoration: _inputDeco('Semester', Icons.book_rounded),
+                    isExpanded: true, // 1. TAMBAHKAN INI DI SINI
                     items: const [
-                      DropdownMenuItem(value: '1', child: Text('Semester 1')),
-                      DropdownMenuItem(value: '2', child: Text('Semester 2')),
+                      DropdownMenuItem(
+                        value: '1',
+                        child: Text(
+                          'Semester 1',
+                          overflow:
+                              TextOverflow.ellipsis, // 2. TAMBAHKAN INI JUGA
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: '2',
+                        child: Text(
+                          'Semester 2',
+                          overflow:
+                              TextOverflow.ellipsis, // 2. TAMBAHKAN INI JUGA
+                        ),
+                      ),
                     ],
                     onChanged: (v) => setState(() => _semester = v!),
                   ),
@@ -391,14 +413,18 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     children: [
                       const Icon(Icons.access_time_rounded, color: _primary),
                       const SizedBox(width: 12),
-                      Text(
-                        _deadline == null
-                            ? 'Pilih tenggat waktu'
-                            : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year} ${_deadline!.hour.toString().padLeft(2, '0')}:${_deadline!.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          color: _deadline == null
-                              ? Colors.grey
-                              : Colors.black87,
+                      Expanded(
+                        child: Text(
+                          _deadline == null
+                              ? 'Pilih tenggat waktu'
+                              : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year} ${_deadline!.hour.toString().padLeft(2, '0')}:${_deadline!.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            color: _deadline == null
+                                ? Colors.grey
+                                : Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
@@ -411,56 +437,56 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             // Upload file
             _sectionLabel('File Lampiran (opsional)'),
             const SizedBox(height: 8),
-            // GestureDetector(
-            //   onTap: _pilihFile,
-            //   child: Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade50,
-            //       borderRadius: BorderRadius.circular(12),
-            //       border: Border.all(
-            //         color: _fileTerpilih != null
-            //             ? _primary
-            //             : Colors.grey.shade200,
-            //         width: _fileTerpilih != null ? 2 : 1,
-            //       ),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         Icon(
-            //           _fileTerpilih != null
-            //               ? Icons.insert_drive_file_rounded
-            //               : Icons.attach_file_rounded,
-            //           color: _fileTerpilih != null
-            //               ? _primary
-            //               : Colors.grey,
-            //         ),
-            //         const SizedBox(width: 12),
-            //         Expanded(
-            //           child: Text(
-            //             _fileTerpilih != null
-            //                 ? _fileTerpilih!.name
-            //                 : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
-            //             style: TextStyle(
-            //               color: _fileTerpilih != null
-            //                   ? Colors.black87
-            //                   : Colors.grey,
-            //               fontSize: 13,
-            //             ),
-            //             overflow: TextOverflow.ellipsis,
-            //           ),
-            //         ),
-            //         if (_fileTerpilih != null)
-            //           GestureDetector(
-            //             onTap: () =>
-            //                 setState(() => _fileTerpilih = null),
-            //             child: const Icon(Icons.close_rounded,
-            //                 color: Colors.grey, size: 18),
-            //           ),
-            //       ],
-            //     ),
-            //   ),
-            // ),
+            GestureDetector(
+              onTap: _pilihFile,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _fileTerpilih != null
+                        ? _primary
+                        : Colors.grey.shade200,
+                    width: _fileTerpilih != null ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _fileTerpilih != null
+                          ? Icons.insert_drive_file_rounded
+                          : Icons.attach_file_rounded,
+                      color: _fileTerpilih != null ? _primary : Colors.grey,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _fileTerpilih != null
+                            ? _fileTerpilih!.name
+                            : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
+                        style: TextStyle(
+                          color: _fileTerpilih != null
+                              ? Colors.black87
+                              : Colors.grey,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_fileTerpilih != null)
+                      GestureDetector(
+                        onTap: () => setState(() => _fileTerpilih = null),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.grey,
+                          size: 18,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 28),
 
             // Tombol simpan
