@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
+import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
+import 'package:mitra_apps/views/guru/guru_main_nav.dart';
 import 'package:mitra_apps/views/login_view.dart';
+import 'package:mitra_apps/views/siswa/siswa_dashboard_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreenView extends StatefulWidget {
   final bool isLoggedIn;
@@ -49,40 +54,68 @@ class _SplashScreenViewState extends State<SplashScreenView>
     _controller.forward();
 
     // Navigasi ke LoginView setelah 3 detik
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const LoginView(),
-            transitionDuration: const Duration(milliseconds: 800),
-            reverseTransitionDuration: const Duration(milliseconds: 800),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  // Animasi slide dari bawah + fade sekaligus
-                  final slideTween =
-                      Tween<Offset>(
-                        begin: const Offset(0, 1.0),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      );
+    Future.delayed(const Duration(seconds: 3), () async {
+      if (!mounted) return;
 
-                  final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeIn),
-                  );
+      final session = Supabase.instance.client.auth.currentSession;
 
-                  return FadeTransition(
-                    opacity: fadeTween,
-                    child: SlideTransition(position: slideTween, child: child),
-                  );
-                },
-          ),
-        );
+      Widget destination = const LoginView();
+
+      if (session != null) {
+        try {
+          // Ambil peran dari tabel pengguna
+          final data = await Supabase.instance.client
+              .from('pengguna')
+              .select('peran')
+              .eq('id', session.user.id)
+              .maybeSingle();
+
+          final peran = data?['peran'] ?? '';
+
+          if (peran == 'admin') {
+            destination = const AdminDashboardView();
+          } else if (peran == 'guru') {
+            destination = const GuruMainNav();
+          } else if (peran == 'siswa') {
+            destination = const SiswaDashboardView();
+          }
+        } catch (e) {
+          destination = const LoginView();
+        }
       }
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => destination,
+          transitionDuration: const Duration(milliseconds: 800),
+          reverseTransitionDuration: const Duration(milliseconds: 800),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final slideTween =
+                Tween<Offset>(
+                  begin: const Offset(0, 1.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+
+            final fadeTween = Tween<double>(
+              begin: 0.0,
+              end: 1.0,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeIn));
+
+            return FadeTransition(
+              opacity: fadeTween,
+              child: SlideTransition(position: slideTween, child: child),
+            );
+          },
+        ),
+      );
     });
   }
 

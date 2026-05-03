@@ -15,6 +15,9 @@ void main() async {
     anonKey: 'sb_publishable_OjXUJ_MEClop_5v0xQnVKg_RBFDNmKb',
   );
 
+  // Beri waktu Supabase restore session dari local storage
+  await Future.delayed(const Duration(milliseconds: 300));
+
   // menyimpan session login
   final session = Supabase.instance.client.auth.currentSession;
   final bool loggedIn = session != null;

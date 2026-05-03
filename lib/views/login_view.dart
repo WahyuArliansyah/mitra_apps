@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
 import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
+import 'package:mitra_apps/views/guru/guru_main_nav.dart';
 import 'package:mitra_apps/views/siswa/siswa_dashboard_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -97,9 +98,7 @@ class _LoginViewState extends State<LoginView> {
           } else if (peran == 'guru') {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const GuruDashboardView(),
-              ),
+              MaterialPageRoute(builder: (context) => const GuruMainNav()),
             );
           } else if (peran == 'siswa') {
             Navigator.pushReplacement(
@@ -255,7 +254,7 @@ class _LoginViewState extends State<LoginView> {
                     children: [
                       // Judul
                       const Text(
-                        'Selamat Datang 👋',
+                        'Selamat Datang',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,

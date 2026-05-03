@@ -246,7 +246,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Selamat Datang 👋',
+                              'Selamat Datang',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 13,
@@ -265,6 +265,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _logout,
                         child: Container(
