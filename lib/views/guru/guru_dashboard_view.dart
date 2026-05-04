@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/views/guru/materi/buat_materi_view.dart';
 import 'package:mitra_apps/views/guru/tugas/buat_tugas_view.dart';
 import 'package:mitra_apps/views/guru/tugas/detail_tugas_view.dart';
 import 'package:mitra_apps/widgets/guru_app_bar.dart';
@@ -163,17 +164,12 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BuatTugasView(idGuru: widget.idGuru),
-          ),
-        ).then((_) => _ambilTugas()),
+        onPressed: () => _showAddOptions(context),
         backgroundColor: _primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
-          'Buat Tugas',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          'Tambah',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -220,6 +216,98 @@ class _GuruDashboardViewState extends State<GuruDashboardView> {
           ),
         ),
       ],
+    );
+  }
+
+  // Membuat option tombol tambah dengan bottom sheet
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Apa yang ingin Anda tambahkan?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1F36),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Tombol Buat Tugas
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.assignment_rounded, color: _primary),
+              ),
+              title: const Text(
+                'Buat Tugas',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Berikan tugas teori atau praktikum',
+                style: TextStyle(fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuatTugasView(idGuru: widget.idGuru),
+                  ),
+                ).then((_) => _ambilTugas());
+              },
+            ),
+            const SizedBox(height: 10),
+            // Tombol Upload Materi
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE6FAF5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: Color(0xFF059669),
+                ),
+              ),
+              title: const Text(
+                'Upload Materi',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Bagikan modul, PDF, atau bahan ajar',
+                style: TextStyle(fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                // Navigasi ke halaman Buat Materi (kita buat di bawah)
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuatMateriView(idGuru: widget.idGuru),
+                  ),
+                ).then((_) => _ambilTugas());
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

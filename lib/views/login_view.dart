@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
 import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
@@ -21,6 +22,41 @@ class _LoginViewState extends State<LoginView> {
 
   static const _primaryBlue = Color(0xFF1A3A8F);
   static const _accentOrange = Color(0xFFF97316);
+
+  // Fungsi khusus untuk menyimpan token ke tabel 'pengguna'
+  Future<void> _updateFCMToken(String idPengguna, String role) async {
+    // Sesuai permintaanmu, kita fokuskan update token ini untuk siswa saja.
+    // (Hapus pengecekan if ini jika nanti guru juga butuh notifikasi popup)
+    if (role != 'siswa') return;
+    final supabase = Supabase.instance.client;
+
+    try {
+      // 1. Minta izin notifikasi ke pengguna (Wajib untuk Android 13+)
+      NotificationSettings settings = await FirebaseMessaging.instance
+          .requestPermission();
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // 2. Ambil token unik dari perangkat HP ini
+        String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+        if (fcmToken != null) {
+          // 3. Simpan token ke tabel 'pengguna'
+          await supabase
+              .from('pengguna')
+              .update({'fcm_token': fcmToken})
+              // Sesuaikan 'id_pengguna' dengan nama kolom Primary Key di tabel penggunamu
+              // (Bisa 'id', 'username', atau 'id_pengguna')
+              .eq('id', idPengguna);
+
+          debugPrint('FCM Token Siswa berhasil diupdate: $fcmToken');
+        }
+      } else {
+        debugPrint('Siswa menolak izin notifikasi');
+      }
+    } catch (e) {
+      debugPrint('Gagal mengambil/menyimpan FCM token: $e');
+    }
+  }
 
   Future<void> _prosesLogin() async {
     setState(() => _isLoading = true);
@@ -86,6 +122,8 @@ class _LoginViewState extends State<LoginView> {
         }
 
         final peran = userData['peran'];
+
+        await _updateFCMToken(userId, peran);
 
         if (mounted) {
           if (peran == 'admin') {

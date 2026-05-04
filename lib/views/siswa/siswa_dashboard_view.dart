@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // [TAMBAHKAN INI]
 
 class SiswaDashboardView extends StatefulWidget {
-  final String idSiswa; // Butuh ID Siswa untuk memfilter notifikasi
+  final String idSiswa;
 
   const SiswaDashboardView({super.key, required this.idSiswa});
 
@@ -17,44 +18,45 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
   static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
 
-  List<Map<String, dynamic>> _listNotifikasi = [];
-  bool _isLoading = true;
+  late final Stream<List<Map<String, dynamic>>> _notifikasiStream;
 
   @override
   void initState() {
     super.initState();
-    _ambilNotifikasi();
+
+    // [PROSES UPDATE TOKEN DIMULAI DI SINI]
+    _updateTokenSiswa();
+
+    _notifikasiStream = supabase
+        .from('notifikasi')
+        .stream(primaryKey: ['id'])
+        .eq('id_siswa', widget.idSiswa)
+        .order('created_at', ascending: false);
+
+    print("DEBUG: Mengupdate token untuk ID: ${widget.idSiswa}");
   }
 
-  Future<void> _ambilNotifikasi() async {
-    if (widget.idSiswa.isEmpty) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
+  // --- FUNGSI UPDATE TOKEN FCM ---
+  Future<void> _updateTokenSiswa() async {
     try {
-      // Mengambil data dari tabel 'notifikasi' milik siswa ini
-      final data = await supabase
-          .from('notifikasi')
-          .select()
-          .eq('id_siswa', widget.idSiswa)
-          .order('created_at', ascending: false);
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        // Tambahkan response untuk menangkap error dari Supabase
+        await supabase
+            .from('pengguna')
+            .update({'fcm_token': token})
+            .eq('id', widget.idSiswa);
 
-      if (!mounted) return;
-      setState(() {
-        _listNotifikasi = List<Map<String, dynamic>>.from(data);
-        _isLoading = false;
-      });
+        print("FCM Token Siswa berhasil diupdate: $token");
+      }
+    } on PostgrestException catch (e) {
+      // Ini akan memunculkan error spesifik dari database (misal: RLS violation)
+      print("Error Database: ${e.message}");
     } catch (e) {
-      debugPrint('Error ambil notifikasi: $e');
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      print("Error Umum: $e");
     }
   }
 
-  // Fungsi untuk memformat tanggal (misal: 24 Des 2026, 14:30)
   String _formatTanggal(String? isoDate) {
     if (isoDate == null) return '';
     try {
@@ -148,26 +150,36 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: _ambilNotifikasi,
-        color: _primary,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: _primary))
-            : _listNotifikasi.isEmpty
-            ? _buildKosong()
-            : ListView.separated(
-                padding: const EdgeInsets.all(20),
-                itemCount: _listNotifikasi.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final notif = _listNotifikasi[index];
-                  // Ngecek apakah notif belum dibaca (opsional, default true supaya putih)
-                  final isRead = notif['is_read'] ?? true;
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _notifikasiStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: _primary),
+            );
+          }
 
-                  return _buildKartuNotifikasi(notif, isRead);
-                },
-              ),
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final listNotifikasi = snapshot.data ?? [];
+
+          if (listNotifikasi.isEmpty) {
+            return _buildKosong();
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: listNotifikasi.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final notif = listNotifikasi[index];
+              final isRead = notif['is_read'] ?? true;
+              return _buildKartuNotifikasi(notif, isRead);
+            },
+          );
+        },
       ),
     );
   }
@@ -176,7 +188,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        // Jika belum dibaca warnanya sedikit biru, jika sudah putih polos
         color: isRead ? Colors.white : const Color(0xFFE0F2FE).withOpacity(0.5),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
@@ -193,7 +204,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ikon Lonceng
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -207,7 +217,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
             ),
           ),
           const SizedBox(width: 16),
-          // Isi Notifikasi
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +242,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
               ],
             ),
           ),
-          // Titik merah penanda belum dibaca
           if (!isRead)
             const Padding(
               padding: EdgeInsets.only(top: 6),
