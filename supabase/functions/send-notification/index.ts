@@ -14,7 +14,6 @@ serve(async (req) => {
     )
 
     // 2. Ambil token FCM siswa dari tabel pengguna
-    // Pastikan kolom 'id' di tabel pengguna cocok dengan 'id_siswa' di tabel notifikasi
     const { data: user, error: userError } = await supabase
       .from('pengguna')
       .select('fcm_token')
@@ -22,14 +21,18 @@ serve(async (req) => {
       .single()
 
     if (userError || !user?.fcm_token) {
-      console.log("User tidak ditemukan atau token kosong")
       return new Response(JSON.stringify({ message: "No token found" }), { status: 200 })
     }
 
-    // 3. Konfigurasi Google Auth untuk Firebase
+    // 3. Konfigurasi Google Auth (Menggunakan 3 Secret Terpisah yang Baru)
     const clientEmail = Deno.env.get('FCM_CLIENT_EMAIL')
-    const privateKey = Deno.env.get('FCM_PRIVATE_KEY')?.replace(/\\n/g, '\n')
+    const privateKey = Deno.env.get('FCM_PRIVATE_KEY')?.replace(/\\n/g, '\n') 
     const projectId = Deno.env.get('FCM_PROJECT_ID')
+
+    // Pengecekan ekstra agar kita tahu jika ada secret yang typo/belum masuk
+    if (!clientEmail || !privateKey || !projectId) {
+        throw new Error("Secret FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY, atau FCM_PROJECT_ID belum terbaca!")
+    }
 
     const jwtClient = new JWT(
       clientEmail,
@@ -53,12 +56,10 @@ serve(async (req) => {
         body: JSON.stringify({
           message: {
             token: user.fcm_token,
-            // Struktur ini yang membuat notifikasi muncul di layar luar (pop-up)
             notification: {
-              title: record.judul || "Notifikasi Baru",
-              body: record.pesan || "Ada informasi baru untuk Anda",
+              title: record.judul || "Informasi Baru",
+              body: record.pesan || "Ada pembaruan tugas/materi.",
             },
-            // Tambahan agar Android memberikan prioritas tinggi (seperti WA)
             android: {
               priority: "high",
               notification: {
@@ -76,7 +77,7 @@ serve(async (req) => {
     )
 
     const fcmResult = await fcmResponse.json()
-    console.log("Hasil kirim Firebase:", fcmResult)
+    console.log("SUKSES Kirim Firebase:", fcmResult)
 
     return new Response(JSON.stringify({ message: "Notifikasi Terkirim", result: fcmResult }), { 
       headers: { "Content-Type": "application/json" } 

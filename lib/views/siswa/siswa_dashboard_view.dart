@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // [TAMBAHKAN INI]
+import 'package:firebase_messaging/firebase_messaging.dart'; //[cite: 2]
 
 class SiswaDashboardView extends StatefulWidget {
-  final String idSiswa;
+  final String idSiswa; // Butuh ID Siswa untuk memfilter notifikasi[cite: 2]
 
   const SiswaDashboardView({super.key, required this.idSiswa});
 
@@ -14,56 +14,60 @@ class SiswaDashboardView extends StatefulWidget {
 }
 
 class _SiswaDashboardViewState extends State<SiswaDashboardView> {
-  final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
-  static const _bg = Color(0xFFF4F6FB);
+  final supabase = Supabase.instance.client; //[cite: 2]
+  static const _primary = Color(0xFF0EA5E9); //[cite: 2]
+  static const _bg = Color(0xFFF4F6FB); //[cite: 2]
 
-  late final Stream<List<Map<String, dynamic>>> _notifikasiStream;
+  late final Stream<List<Map<String, dynamic>>> _notifikasiStream; //[cite: 2]
 
   @override
   void initState() {
     super.initState();
 
-    // [PROSES UPDATE TOKEN DIMULAI DI SINI]
+    // 1. Jalankan update token FCM ke Supabase saat dashboard dibuka[cite: 2]
     _updateTokenSiswa();
 
+    // 2. Dengarkan perubahan data notifikasi secara real-time[cite: 2]
     _notifikasiStream = supabase
         .from('notifikasi')
         .stream(primaryKey: ['id'])
         .eq('id_siswa', widget.idSiswa)
         .order('created_at', ascending: false);
 
-    print("DEBUG: Mengupdate token untuk ID: ${widget.idSiswa}");
+    print("DEBUG: Mengupdate token untuk ID: ${widget.idSiswa}"); //[cite: 2]
   }
 
   // --- FUNGSI UPDATE TOKEN FCM ---
   Future<void> _updateTokenSiswa() async {
     try {
-      String? token = await FirebaseMessaging.instance.getToken();
+      // Ambil token dari device[cite: 2]
+      String? token = await FirebaseMessaging.instance.getToken(); //[cite: 2]
       if (token != null) {
-        // Tambahkan response untuk menangkap error dari Supabase
-        await supabase
+        // Simpan token ke database db_mitra di tabel pengguna[cite: 2]
+        final response = await supabase
             .from('pengguna')
             .update({'fcm_token': token})
-            .eq('id', widget.idSiswa);
+            .eq('id', widget.idSiswa)
+            .select();
 
-        print("FCM Token Siswa berhasil diupdate: $token");
+        print("FCM Token Siswa berhasil diupdate: $token"); //[cite: 2]
       }
     } on PostgrestException catch (e) {
-      // Ini akan memunculkan error spesifik dari database (misal: RLS violation)
-      print("Error Database: ${e.message}");
+      // Tangkap error jika ada masalah RLS di Supabase[cite: 2]
+      print("Error Database (RLS/Kolom): ${e.message}"); //[cite: 2]
     } catch (e) {
-      print("Error Umum: $e");
+      print("Error Umum: $e"); //[cite: 2]
     }
   }
 
+  // Fungsi untuk memformat tanggal (misal: 24 Des 2026, 14:30)[cite: 2]
   String _formatTanggal(String? isoDate) {
-    if (isoDate == null) return '';
+    if (isoDate == null) return ''; //[cite: 2]
     try {
-      final date = DateTime.parse(isoDate).toLocal();
-      return DateFormat('dd MMM yyyy, HH:mm').format(date);
+      final date = DateTime.parse(isoDate).toLocal(); //[cite: 2]
+      return DateFormat('dd MMM yyyy, HH:mm').format(date); //[cite: 2]
     } catch (e) {
-      return isoDate;
+      return isoDate; //[cite: 2]
     }
   }
 
@@ -71,34 +75,41 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Yakin ingin keluar dari akun ini?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ), //[cite: 2]
+        title: const Text('Konfirmasi Logout'), //[cite: 2]
+        content: const Text('Yakin ingin keluar dari akun ini?'), //[cite: 2]
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            onPressed: () => Navigator.pop(ctx, false), //[cite: 2]
+            child: const Text('Batal'), //[cite: 2]
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(ctx, true), //[cite: 2]
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: Colors.redAccent, //[cite: 2]
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8), //[cite: 2]
               ),
             ),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.white),
+            ), //[cite: 2]
           ),
         ],
       ),
     );
     if (ok == true && context.mounted) {
-      await Supabase.instance.client.auth.signOut();
+      //[cite: 2]
+      await Supabase.instance.client.auth.signOut(); //[cite: 2]
       if (context.mounted) {
+        //[cite: 2]
         Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginView()),
-          (route) => false,
+          context, //[cite: 2]
+          MaterialPageRoute(builder: (_) => const LoginView()), //[cite: 2]
+          (route) => false, //[cite: 2]
         );
       }
     }
@@ -107,37 +118,41 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: _bg, //[cite: 2]
       appBar: AppBar(
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween, //[cite: 2]
           children: [
             const Text(
-              'Notifikasi',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Notifikasi', //[cite: 2]
+              style: TextStyle(fontWeight: FontWeight.bold), //[cite: 2]
             ),
             GestureDetector(
-              onTap: () => _logout(context),
+              onTap: () => _logout(context), //[cite: 2]
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
+                  horizontal: 12, //[cite: 2]
+                  vertical: 7, //[cite: 2]
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white30),
+                  color: Colors.white.withOpacity(0.15), //[cite: 2]
+                  borderRadius: BorderRadius.circular(20), //[cite: 2]
+                  border: Border.all(color: Colors.white30), //[cite: 2]
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.logout_rounded, color: Colors.white, size: 15),
-                    SizedBox(width: 5),
+                    Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white,
+                      size: 15,
+                    ), //[cite: 2]
+                    SizedBox(width: 5), //[cite: 2]
                     Text(
-                      'Logout',
+                      'Logout', //[cite: 2]
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        color: Colors.white, //[cite: 2]
+                        fontSize: 12, //[cite: 2]
+                        fontWeight: FontWeight.w600, //[cite: 2]
                       ),
                     ),
                   ],
@@ -146,37 +161,42 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
             ),
           ],
         ),
-        backgroundColor: _primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: _primary, //[cite: 2]
+        foregroundColor: Colors.white, //[cite: 2]
+        elevation: 0, //[cite: 2]
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _notifikasiStream,
+        stream: _notifikasiStream, //[cite: 2]
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+            //[cite: 2]
             return const Center(
-              child: CircularProgressIndicator(color: _primary),
+              child: CircularProgressIndicator(color: _primary), //[cite: 2]
             );
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            //[cite: 2]
+            return Center(child: Text('Error: ${snapshot.error}')); //[cite: 2]
           }
 
-          final listNotifikasi = snapshot.data ?? [];
+          final listNotifikasi = snapshot.data ?? []; //[cite: 2]
 
           if (listNotifikasi.isEmpty) {
-            return _buildKosong();
+            //[cite: 2]
+            return _buildKosong(); //[cite: 2]
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: listNotifikasi.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            padding: const EdgeInsets.all(20), //[cite: 2]
+            itemCount: listNotifikasi.length, //[cite: 2]
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: 12), //[cite: 2]
             itemBuilder: (context, index) {
-              final notif = listNotifikasi[index];
-              final isRead = notif['is_read'] ?? true;
-              return _buildKartuNotifikasi(notif, isRead);
+              //[cite: 2]
+              final notif = listNotifikasi[index]; //[cite: 2]
+              final isRead = notif['is_read'] ?? true; //[cite: 2]
+              return _buildKartuNotifikasi(notif, isRead); //[cite: 2]
             },
           );
         },
@@ -185,67 +205,81 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
   }
 
   Widget _buildKartuNotifikasi(Map<String, dynamic> notif, bool isRead) {
+    //[cite: 2]
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16), //[cite: 2]
       decoration: BoxDecoration(
-        color: isRead ? Colors.white : const Color(0xFFE0F2FE).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(14),
+        color: isRead
+            ? Colors.white
+            : const Color(0xFFE0F2FE).withOpacity(0.5), //[cite: 2]
+        borderRadius: BorderRadius.circular(14), //[cite: 2]
         border: Border.all(
-          color: isRead ? Colors.grey.shade200 : _primary.withOpacity(0.3),
+          color: isRead
+              ? Colors.grey.shade200
+              : _primary.withOpacity(0.3), //[cite: 2]
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.03), //[cite: 2]
+            blurRadius: 8, //[cite: 2]
+            offset: const Offset(0, 2), //[cite: 2]
           ),
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start, //[cite: 2]
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10), //[cite: 2]
             decoration: BoxDecoration(
-              color: _primary.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: _primary.withOpacity(0.1), //[cite: 2]
+              shape: BoxShape.circle, //[cite: 2]
             ),
             child: const Icon(
-              Icons.notifications_active_rounded,
-              color: _primary,
-              size: 24,
+              Icons.notifications_active_rounded, //[cite: 2]
+              color: _primary, //[cite: 2]
+              size: 24, //[cite: 2]
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 16), //[cite: 2]
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start, //[cite: 2]
               children: [
                 Text(
-                  notif['judul'] ?? 'Informasi Baru',
+                  notif['judul'] ?? 'Informasi Baru', //[cite: 2]
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Color(0xFF1A1F36),
+                    fontWeight: FontWeight.bold, //[cite: 2]
+                    fontSize: 14, //[cite: 2]
+                    color: Color(0xFF1A1F36), //[cite: 2]
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 4), //[cite: 2]
                 Text(
-                  notif['pesan'] ?? '',
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  notif['pesan'] ?? '', //[cite: 2]
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 13,
+                  ), //[cite: 2]
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 8), //[cite: 2]
                 Text(
-                  _formatTanggal(notif['created_at']),
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  _formatTanggal(notif['created_at']), //[cite: 2]
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ), //[cite: 2]
                 ),
               ],
             ),
           ),
-          if (!isRead)
+          if (!isRead) //[cite: 2]
             const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: CircleAvatar(radius: 4, backgroundColor: Colors.redAccent),
+              padding: EdgeInsets.only(top: 6), //[cite: 2]
+              child: CircleAvatar(
+                radius: 4,
+                backgroundColor: Colors.redAccent,
+              ), //[cite: 2]
             ),
         ],
       ),
@@ -253,33 +287,37 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView> {
   }
 
   Widget _buildKosong() {
+    //[cite: 2]
     return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(), //[cite: 2]
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
+        height: MediaQuery.of(context).size.height * 0.7, //[cite: 2]
         child: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center, //[cite: 2]
             children: [
               Icon(
-                Icons.notifications_off_rounded,
-                size: 80,
-                color: Colors.grey.shade300,
+                Icons.notifications_off_rounded, //[cite: 2]
+                size: 80, //[cite: 2]
+                color: Colors.grey.shade300, //[cite: 2]
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16), //[cite: 2]
               const Text(
-                'Belum ada notifikasi',
+                'Belum ada notifikasi', //[cite: 2]
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  fontSize: 16, //[cite: 2]
+                  fontWeight: FontWeight.bold, //[cite: 2]
+                  color: Colors.grey, //[cite: 2]
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8), //[cite: 2]
               Text(
-                'Notifikasi tugas atau materi baru\nakan muncul di sini.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                'Notifikasi tugas atau materi baru\nakan muncul di sini.', //[cite: 2]
+                textAlign: TextAlign.center, //[cite: 2]
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                ), //[cite: 2]
               ),
             ],
           ),
