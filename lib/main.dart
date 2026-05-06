@@ -4,12 +4,10 @@ import 'package:mitra_apps/views/login_view.dart';
 import 'package:mitra_apps/views/splash_screen_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // [TAMBAHAN]
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // [TAMBAHAN]
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// --- KONFIGURASI NOTIFIKASI BACKGROUND (MULAI) ---
-
-// 1. Fungsi penangkap notifikasi saat aplikasi ditutup (Wajib pakai pragma)
+// Fungsi penangkap notifikasi saat aplikasi ditutup (Wajib pakai pragma)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Harus inisialisasi Firebase lagi khusus untuk mode background
@@ -17,7 +15,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Notifikasi masuk saat aplikasi mati: ${message.messageId}");
 }
 
-// 2. Buat Channel Android berprioritas tinggi (Agar muncul pop-up banner & suara)
+// Buat Channel Android berprioritas tinggi (Agar muncul pop-up banner & suara)
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'high_importance_channel', // ID ini wajib sama dengan yang di Edge Function
   'High Importance Notifications',
@@ -28,15 +26,12 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// --- KONFIGURASI NOTIFIKASI BACKGROUND (SELESAI) ---
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inisialisasi Firebase
   await Firebase.initializeApp();
 
-  // --- REGISTRASI NOTIFIKASI KE SISTEM ANDROID ---
   // Daftarkan handler background
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -53,7 +48,6 @@ void main() async {
     badge: true,
     sound: true,
   );
-  // ------------------------------------------------
 
   // Inisialisasi Supabase
   await Supabase.initialize(

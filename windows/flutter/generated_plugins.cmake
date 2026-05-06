@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  auto_start_flutter
   firebase_core
   permission_handler_windows
   printing

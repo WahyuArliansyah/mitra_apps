@@ -136,6 +136,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
                         ),
                       )
                     : DropdownButtonFormField<Map<String, dynamic>>(
+                        isExpanded: true,
                         value: _penugasanTerpilih,
                         dropdownColor: Colors.white,
                         style: const TextStyle(

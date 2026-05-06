@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  auto_start_flutter
   gtk
   printing
   url_launcher_linux

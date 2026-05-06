@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class GuruService {
   final supabase = Supabase.instance.client;
 
-  // READ: Ambil semua data guru[cite: 2]
+  // READ: Ambil semua data guru
   Future<List<GuruModel>> getSemuaGuru() async {
     try {
       final response = await supabase
@@ -42,13 +42,13 @@ class GuruService {
         await Future.delayed(const Duration(milliseconds: 500));
 
         try {
-          // 2. Hash password via RPC
+          // Hash password via RPC
           final hashedPassword = await supabase.rpc(
             'hash_password',
             params: {'plain_password': guru.nip!},
           );
 
-          // 3. Insert ke tabel guru
+          // Insert ke tabel guru
           await Future.wait([
             // Hash & update pengguna
             supabase
@@ -193,7 +193,7 @@ class GuruService {
         params: {'plain_password': passwordBaru},
       );
 
-      // 3. Update kata_sandi di tabel pengguna
+      // Update kata_sandi di tabel pengguna
       final user = supabase.auth.currentUser;
       if (user != null) {
         await supabase
