@@ -1,9 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
-import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
-import 'package:mitra_apps/views/guru/guru_main_nav.dart';
-import 'package:mitra_apps/views/siswa/siswa_dashboard_view.dart';
+import 'package:mitra_apps/widgets/custom_main_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginView extends StatefulWidget {
@@ -137,14 +135,16 @@ class _LoginViewState extends State<LoginView> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => GuruMainNav(userId: userId),
+                builder: (context) =>
+                    CustomMainNav(userId: userId, role: 'guru'),
               ),
             );
           } else if (peran == 'siswa') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => SiswaDashboardView(idSiswa: userId),
+                builder: (context) =>
+                    CustomMainNav(userId: userId, role: 'siswa'),
               ),
             );
           } else {

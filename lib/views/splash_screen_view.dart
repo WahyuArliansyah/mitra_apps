@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
-import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
-import 'package:mitra_apps/views/guru/guru_main_nav.dart';
 import 'package:mitra_apps/views/login_view.dart';
-import 'package:mitra_apps/views/siswa/siswa_dashboard_view.dart';
+import 'package:mitra_apps/widgets/custom_main_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreenView extends StatefulWidget {
@@ -75,9 +73,9 @@ class _SplashScreenViewState extends State<SplashScreenView>
           if (peran == 'admin') {
             destination = const AdminDashboardView();
           } else if (peran == 'guru') {
-            destination = GuruMainNav(userId: session.user.id);
+            destination = CustomMainNav(userId: session.user.id, role: 'guru');
           } else if (peran == 'siswa') {
-            destination = SiswaDashboardView(idSiswa: session.user.id);
+            destination = CustomMainNav(userId: session.user.id, role: 'siswa');
           }
         } catch (e) {
           destination = const LoginView();

@@ -125,7 +125,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   children: [
                     _buildSectionLabel('Statistik Cepat'),
                     const SizedBox(height: 12),
-                    // ✅ Pakai StatCard dari widgets/
+                    // Pakai StatCard dari widgets/
                     Row(
                       children: [
                         Expanded(
