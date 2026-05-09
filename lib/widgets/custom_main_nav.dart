@@ -103,7 +103,11 @@ class _CustomMainNavState extends State<CustomMainNav> {
           return RekapNilaiSiswa(
             idSiswa: _idProfile,
             namaSiswa: _namaProfile,
-            idKelas: _idKelas,
+            idKelas: _idKelas, // Pastikan _idKelas sudah ada isinya
+            idMapel: 'cf9420c2-f7fc-43c4-8932-87691ecf453e', // JANGAN KOSONG
+            semester: '1', // Contoh: diisi manual atau ambil dari variabel
+            tahunAjaran:
+                '2025/2026', // Contoh: diisi manual atau ambil dari variabel
           );
         default:
           return SiswaDashboardView(idSiswa: _idProfile);

@@ -27,6 +27,9 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
   List<Map<String, dynamic>> _listTugas = [];
   List<Map<String, dynamic>> _listMateri = [];
 
+  // Map<id_tugas, data_pengumpulan>
+  Map<String, Map<String, dynamic>?> _statusPengumpulan = {};
+
   late TabController _tabController;
 
   @override
@@ -69,7 +72,31 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
           .eq('metode', 'upload')
           .order('created_at', ascending: false);
 
-      // 3. Ambil semua materi sesuai kelas
+      final listTugas = List<Map<String, dynamic>>.from(tugasData);
+
+      // 3. Ambil semua pengumpulan siswa ini sekaligus (1 query)
+      final idTugasList = listTugas.map((t) => t['id']).toList();
+      Map<String, Map<String, dynamic>?> statusMap = {};
+
+      if (idTugasList.isNotEmpty) {
+        final pengumpulanData = await supabase
+            .from('pengumpulan')
+            .select()
+            .eq('id_siswa', widget.idSiswa)
+            .inFilter('id_tugas', idTugasList);
+
+        // Mapping id_tugas -> data pengumpulan
+        for (final p in pengumpulanData) {
+          statusMap[p['id_tugas'].toString()] = Map<String, dynamic>.from(p);
+        }
+      }
+
+      // Tugas yang belum dikumpulkan tetap null di map
+      for (final t in listTugas) {
+        statusMap.putIfAbsent(t['id'].toString(), () => null);
+      }
+
+      // 4. Ambil materi
       final materiData = await supabase
           .from('materi')
           .select('*, kelas(nama_kelas), mata_pelajaran(nama_mapel)')
@@ -78,8 +105,9 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
       if (!mounted) return;
       setState(() {
-        _listTugas = List<Map<String, dynamic>>.from(tugasData);
+        _listTugas = listTugas;
         _listMateri = List<Map<String, dynamic>>.from(materiData);
+        _statusPengumpulan = statusMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -182,7 +210,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                     ],
                   ),
                 ),
-                // TabBarView
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _loadData,
@@ -211,15 +238,34 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: _listTugas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _buildTugasCard(_listTugas[i]),
+      itemBuilder: (_, i) {
+        final tugas = _listTugas[i];
+        final pengumpulan = _statusPengumpulan[tugas['id'].toString()];
+        return _buildTugasCard(tugas, pengumpulan);
+      },
     );
   }
 
-  Widget _buildTugasCard(Map<String, dynamic> tugas) {
+  Widget _buildTugasCard(
+    Map<String, dynamic> tugas,
+    Map<String, dynamic>? pengumpulan,
+  ) {
     final deadline = tugas['tenggat_waktu']?.toString();
     final isNear = _isDeadlineNear(deadline);
     final isPassed = _isDeadlinePassed(deadline);
 
+    // Status pengumpulan
+    final sudahKumpul = pengumpulan != null;
+    final statusKumpul = pengumpulan?['status_pengumpulan'] as String?;
+
+    // Tentukan chip status pengumpulan
+    final _StatusInfo statusInfo = _getStatusInfo(
+      sudahKumpul: sudahKumpul,
+      statusKumpul: statusKumpul,
+      isPassed: isPassed,
+    );
+
+    // Warna tenggat
     Color deadlineColor = const Color(0xFF6B7280);
     if (isPassed) deadlineColor = Colors.redAccent;
     if (isNear && !isPassed) deadlineColor = const Color(0xFFD97706);
@@ -247,12 +293,14 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Strip biru (teori)
+            // Strip warna atas sesuai status
             Container(
               height: 5,
-              decoration: const BoxDecoration(
-                color: _primary,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              decoration: BoxDecoration(
+                color: statusInfo.stripColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
               ),
             ),
             Padding(
@@ -260,7 +308,9 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Baris atas: icon + judul + badge status pengumpulan
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -298,26 +348,58 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                           ],
                         ),
                       ),
-                      // Badge status tenggat
-                      if (isPassed)
-                        _badge(
-                          'Terlambat',
-                          Colors.redAccent,
-                          const Color(0xFFFFEDED),
-                        )
-                      else if (isNear)
-                        _badge(
-                          'Segera',
-                          const Color(0xFFD97706),
-                          const Color(0xFFFEF3E0),
-                        )
-                      else
-                        _badge('Aktif', _primary, const Color(0xFFE0F2FE)),
                     ],
                   ),
+                  const SizedBox(height: 12),
+
+                  // Badge status pengumpulan (full width, mencolok)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusInfo.bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: statusInfo.color.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          statusInfo.icon,
+                          size: 16,
+                          color: statusInfo.color,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          statusInfo.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: statusInfo.color,
+                          ),
+                        ),
+                        if (sudahKumpul &&
+                            pengumpulan?['waktu_pengumpulan'] != null) ...[
+                          const Spacer(),
+                          Text(
+                            _formatTenggat(pengumpulan!['waktu_pengumpulan']),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: statusInfo.color,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   if (tugas['deskripsi'] != null &&
                       tugas['deskripsi'].toString().isNotEmpty) ...[
-                    const SizedBox(height: 10),
                     Text(
                       tugas['deskripsi'],
                       style: const TextStyle(
@@ -327,10 +409,13 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 12),
                   ],
-                  const SizedBox(height: 12),
+
                   const Divider(height: 1, color: Color(0xFFF1F3F9)),
                   const SizedBox(height: 10),
+
+                  // Footer: kelas + tenggat
                   Row(
                     children: [
                       Icon(
@@ -368,6 +453,8 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                     ],
                   ),
                   const SizedBox(height: 10),
+
+                  // Tombol aksi
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -380,11 +467,18 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                           ),
                         ),
                       ).then((_) => _loadData()),
-                      icon: const Icon(Icons.upload_file_rounded, size: 16),
-                      label: const Text('Lihat & Kumpulkan'),
+                      icon: Icon(
+                        sudahKumpul
+                            ? Icons.visibility_rounded
+                            : Icons.upload_file_rounded,
+                        size: 16,
+                      ),
+                      label: Text(
+                        sudahKumpul ? 'Lihat Detail' : 'Kumpulkan Tugas',
+                      ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _primary,
-                        side: const BorderSide(color: _primary),
+                        foregroundColor: statusInfo.color,
+                        side: BorderSide(color: statusInfo.color),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -405,7 +499,61 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     );
   }
 
-  // ── LIST MATERI ────────────────────────────────────────────────────────────
+  /// Tentukan info visual badge berdasarkan status pengumpulan
+  _StatusInfo _getStatusInfo({
+    required bool sudahKumpul,
+    required String? statusKumpul,
+    required bool isPassed,
+  }) {
+    if (!sudahKumpul) {
+      // Belum dikumpulkan sama sekali
+      if (isPassed) {
+        return _StatusInfo(
+          label: 'Tidak Dikumpulkan',
+          icon: Icons.cancel_rounded,
+          color: Colors.redAccent,
+          bgColor: const Color(0xFFFFEDED),
+          stripColor: Colors.redAccent,
+        );
+      }
+      return _StatusInfo(
+        label: 'Belum Dikumpulkan',
+        icon: Icons.radio_button_unchecked_rounded,
+        color: const Color(0xFF6B7280),
+        bgColor: const Color(0xFFF3F4F6),
+        stripColor: const Color(0xFFD1D5DB),
+      );
+    }
+
+    switch (statusKumpul) {
+      case 'dinilai':
+        return _StatusInfo(
+          label: 'Sudah Dinilai',
+          icon: Icons.verified_rounded,
+          color: const Color(0xFF059669),
+          bgColor: const Color(0xFFE6FAF5),
+          stripColor: const Color(0xFF059669),
+        );
+      case 'terlambat':
+        return _StatusInfo(
+          label: 'Terlambat Dikumpulkan',
+          icon: Icons.warning_rounded,
+          color: const Color(0xFFD97706),
+          bgColor: const Color(0xFFFEF3E0),
+          stripColor: const Color(0xFFD97706),
+        );
+      default: // menunggu
+        return _StatusInfo(
+          label: 'Menunggu Penilaian',
+          icon: Icons.hourglass_top_rounded,
+          color: _primary,
+          bgColor: const Color(0xFFE0F2FE),
+          stripColor: _primary,
+        );
+    }
+  }
+
+  // Build list materi
   Widget _buildListMateri() {
     if (_listMateri.isEmpty) {
       return _buildKosong(
@@ -422,6 +570,7 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     );
   }
 
+  // Build card materi
   Widget _buildMateriCard(Map<String, dynamic> materi) {
     const Color color = Color(0xFF7C3AED);
     const Color bg = Color(0xFFF3F0FF);
@@ -441,7 +590,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Strip ungu
           Container(
             height: 5,
             decoration: const BoxDecoration(
@@ -492,7 +640,24 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                         ],
                       ),
                     ),
-                    _badge('Materi', color, bg),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Materi',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: color,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 if (materi['deskripsi'] != null &&
@@ -533,14 +698,15 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                       color: Colors.grey.shade400,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      'Smt ${materi['semester'] ?? '-'}  •  ${materi['tahun_ajaran'] ?? '-'}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
+                    Expanded(
+                      child: Text(
+                        'Smt ${materi['semester'] ?? '-'}  •  ${materi['tahun_ajaran'] ?? '-'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
                     ),
-                    const Spacer(),
                     Icon(
                       Icons.access_time_rounded,
                       size: 14,
@@ -597,25 +763,8 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     );
   }
 
-  // ── HELPERS ────────────────────────────────────────────────────────────────
-  Widget _badge(String label, Color color, Color bg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
+  // berfungsi untuk menampilkan tampilan ketika list tugas atau materi kosong,
+  // dengan ikon dan pesan yang informatif
   Widget _buildKosong({
     required IconData icon,
     required String pesan,
@@ -644,4 +793,21 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       ),
     );
   }
+}
+
+// Model info status pengumpulan untuk menentukan tampilan badge
+class _StatusInfo {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final Color stripColor;
+
+  const _StatusInfo({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+    required this.stripColor,
+  });
 }

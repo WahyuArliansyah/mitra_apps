@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/views/guru/tugas/detail_nilai_siswa_view.dart';
+import 'package:mitra_apps/views/guru/tugas/detail_nilai_rekap.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruRekapNilaiView extends StatefulWidget {

@@ -25,7 +25,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
 
   final _catatanController = TextEditingController();
 
-  Map<String, dynamic>? _pengumpulan; // data pengumpulan jika sudah ada
+  Map<String, dynamic>? _pengumpulan;
   bool _isLoadingPengumpulan = true;
   bool _isUploading = false;
 
@@ -35,6 +35,8 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   @override
   void initState() {
     super.initState();
+    debugPrint('Data tugas: ${widget.tugas}');
+    debugPrint('url_file_materi: ${widget.tugas['url_file_materi']}');
     _cekPengumpulan();
   }
 
@@ -44,7 +46,19 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     super.dispose();
   }
 
-  // Cek apakah siswa sudah pernah mengumpulkan tugas ini
+  bool get _deadlinePassed {
+    final deadline = widget.tugas['tenggat_waktu'];
+    if (deadline == null) return false;
+    try {
+      return DateTime.parse(deadline).toLocal().isBefore(DateTime.now());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Status yang akan disimpan ke DB berdasarkan kondisi tenggat
+  String get _statusPengumpulan => _deadlinePassed ? 'terlambat' : 'menunggu';
+
   Future<void> _cekPengumpulan() async {
     setState(() => _isLoadingPengumpulan = true);
     try {
@@ -70,7 +84,6 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     }
   }
 
-  // Fungsi untuk memilih bucket jawaban
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -86,9 +99,9 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   }
 
   Future<void> _kumpulkanTugas() async {
-    // Validasi: harus ada bucket jika belum pernah kumpul
+    // Jika belum pernah kumpul, wajib pilih file
     if (_pengumpulan == null && _filePicked == null) {
-      _showSnackbar('Pilih bucket jawaban terlebih dahulu', isError: true);
+      _showSnackbar('Pilih file jawaban terlebih dahulu', isError: true);
       return;
     }
 
@@ -97,7 +110,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     try {
       String? urlFileBukti = _pengumpulan?['url_file_bukti'];
 
-      // Upload bucket ke Supabase Storage jika ada bucket baru dipilih
+      // Upload file baru jika ada
       if (_filePicked != null) {
         final ext = _filePickedName!.split('.').last;
         final fileName =
@@ -115,34 +128,46 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
       final now = DateTime.now().toIso8601String();
 
       if (_pengumpulan == null) {
-        // INSERT jika belum pernah kumpul
+        // INSERT — status: 'menunggu' atau 'terlambat'
         await supabase.from('pengumpulan').insert({
           'id_tugas': widget.tugas['id'],
           'id_siswa': widget.idSiswa,
           'url_file_bukti': urlFileBukti,
           'catatan_siswa': _catatanController.text.trim(),
           'waktu_pengumpulan': now,
-          'status_pengumpulan': 'menunggu',
+          'status_pengumpulan': _statusPengumpulan,
         });
       } else {
-        // UPDATE jika sudah ada
+        // UPDATE — status tetap 'dinilai' jika sudah dinilai guru,
+        // jika belum dinilai update sesuai kondisi tenggat
+        final statusLama = _pengumpulan!['status_pengumpulan'];
+        final statusBaru = statusLama == 'dinilai'
+            ? 'dinilai'
+            : _statusPengumpulan;
+
         await supabase
             .from('pengumpulan')
             .update({
               'url_file_bukti': urlFileBukti,
               'catatan_siswa': _catatanController.text.trim(),
               'waktu_pengumpulan': now,
-              'status_pengumpulan': 'dinilai',
+              'status_pengumpulan': statusBaru,
             })
             .eq('id', _pengumpulan!['id']);
       }
 
       if (!mounted) return;
       _showSnackbar('Tugas berhasil dikumpulkan!');
-      await _cekPengumpulan(); // Refresh status
+      setState(() {
+        _filePicked = null;
+        _filePickedName = null;
+      });
+      await _cekPengumpulan();
     } catch (e) {
       debugPrint('Error kumpulkan tugas: $e');
-      if (mounted) _showSnackbar('Gagal mengumpulkan tugas: $e', isError: true);
+      if (mounted) {
+        _showSnackbar('Gagal mengumpulkan tugas: $e', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -170,28 +195,60 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     }
   }
 
-  bool _isDeadlinePassed() {
-    final deadline = widget.tugas['tenggat_waktu'];
-    if (deadline == null) return false;
-    try {
-      return DateTime.parse(deadline).toLocal().isBefore(DateTime.now());
-    } catch (_) {
-      return false;
+  // Warna & label badge status pengumpulan
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'dinilai':
+        return const Color(0xFF059669);
+      case 'terlambat':
+        return Colors.redAccent;
+      default: // menunggu
+        return const Color(0xFFD97706);
+    }
+  }
+
+  Color _statusBg(String status) {
+    switch (status) {
+      case 'dinilai':
+        return const Color(0xFFE6FAF5);
+      case 'terlambat':
+        return const Color(0xFFFFEDED);
+      default:
+        return const Color(0xFFFEF3E0);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'dinilai':
+        return Icons.check_circle_rounded;
+      case 'terlambat':
+        return Icons.warning_rounded;
+      default:
+        return Icons.hourglass_top_rounded;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'dinilai':
+        return 'Sudah Dinilai';
+      case 'terlambat':
+        return 'Terlambat';
+      default:
+        return 'Menunggu Penilaian';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final tugas = widget.tugas;
-    final isPraktikum = tugas['type_tugas'] == 'praktikum';
-    final Color typeColor = isPraktikum
-        ? const Color(0xFFD97706)
-        : const Color(0xFF059669);
-    final Color typeBg = isPraktikum
-        ? const Color(0xFFFEF3E0)
-        : const Color(0xFFE6FAF5);
     final sudahKumpul = _pengumpulan != null;
-    final deadlinePassed = _isDeadlinePassed();
+    final statusPengumpulan = _pengumpulan?['status_pengumpulan'] ?? 'menunggu';
+    final sudahDinilai = statusPengumpulan == 'dinilai';
+
+    // Tidak bisa update jika sudah dinilai
+    final bisaEdit = !sudahDinilai;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
@@ -214,162 +271,21 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Card Info Tugas ──────────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Strip warna
-                        Container(
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: typeColor,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Badge tipe
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: typeBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  isPraktikum ? 'Praktikum' : 'Teori',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: typeColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                tugas['judul_tugas'] ?? '-',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1A1F36),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                tugas['mata_pelajaran']?['nama_mapel'] ?? '-',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF9AA0B2),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              const Divider(color: Color(0xFFF1F3F9)),
-                              const SizedBox(height: 12),
-                              // Info row
-                              _infoRow(
-                                Icons.class_rounded,
-                                'Kelas',
-                                tugas['kelas']?['nama_kelas'] ?? '-',
-                              ),
-                              const SizedBox(height: 8),
-                              _infoRow(
-                                Icons.laptop_rounded,
-                                'Metode',
-                                tugas['metode'] ?? '-',
-                              ),
-                              const SizedBox(height: 8),
-                              _infoRow(
-                                Icons.access_time_rounded,
-                                'Tenggat Waktu',
-                                _formatTanggal(tugas['tenggat_waktu']),
-                                valueColor: deadlinePassed
-                                    ? Colors.redAccent
-                                    : const Color(0xFF1A1F36),
-                              ),
-                              const SizedBox(height: 8),
-                              _infoRow(
-                                Icons.school_rounded,
-                                'Semester',
-                                'Semester ${tugas['semester'] ?? '-'} — ${tugas['tahun_ajaran'] ?? '-'}',
-                              ),
-                              if (tugas['deskripsi'] != null &&
-                                  tugas['deskripsi'].toString().isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Deskripsi Tugas',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1A1F36),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  tugas['deskripsi'],
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF4B5563),
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                              // File materi dari guru
-                              if (tugas['url_file_materi'] != null &&
-                                  tugas['url_file_materi']
-                                      .toString()
-                                      .isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    TODO:
-                                    launchUrl(
-                                      Uri.parse(tugas['url_file_materi']),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.attach_file_rounded,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Lihat File Soal'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _primary,
-                                    side: const BorderSide(color: _primary),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  // ── Card Info Tugas ────────────────────────────────────
+                  _buildCardInfoTugas(tugas),
+                  const SizedBox(height: 16),
 
-                  // Cek status pengumpulan
-                  if (sudahKumpul)
+                  // ── Banner Status Pengumpulan ──────────────────────────
+                  if (sudahKumpul) ...[
+                    _buildBannerStatus(statusPengumpulan),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Form Upload ────────────────────────────────────────
+                  if (bisaEdit) _buildFormUpload(sudahKumpul),
+
+                  // ── Info sudah dinilai, tidak bisa edit ────────────────
+                  if (sudahDinilai)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
@@ -377,257 +293,438 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                         color: const Color(0xFFE6FAF5),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFF059669).withOpacity(0.4),
+                          color: const Color(0xFF059669).withOpacity(0.3),
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(
-                            Icons.check_circle_rounded,
+                          Icon(
+                            Icons.lock_rounded,
                             color: Color(0xFF059669),
-                            size: 22,
+                            size: 20,
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Sudah Dikumpulkan',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF059669),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                Text(
-                                  'Waktu: ${_formatTanggal(_pengumpulan!['waktu_pengumpulan'])}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF059669),
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'Tugas ini sudah dinilai oleh guru dan tidak dapat diubah lagi.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF059669),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  if (sudahKumpul) const SizedBox(height: 20),
 
-                  // ── Form Upload Jawaban ──────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sudahKumpul ? 'Perbarui Jawaban' : 'Upload Jawaban',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1F36),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          sudahKumpul
-                              ? 'Kamu sudah mengumpulkan. Bisa diperbarui selama belum lewat tenggat.'
-                              : 'Upload bucket jawaban kamu (PDF, Word, atau gambar)',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9AA0B2),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Pilih bucket
-                        GestureDetector(
-                          onTap: deadlinePassed ? null : _pickFile,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: deadlinePassed
-                                  ? Colors.grey.shade100
-                                  : const Color(0xFFF0F9FF),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _filePicked != null
-                                    ? _primary
-                                    : Colors.grey.shade300,
-                                width: _filePicked != null ? 1.5 : 1,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  _filePicked != null
-                                      ? Icons.insert_drive_file_rounded
-                                      : Icons.cloud_upload_rounded,
-                                  size: 36,
-                                  color: _filePicked != null
-                                      ? _primary
-                                      : Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _filePicked != null
-                                      ? _filePickedName!
-                                      : deadlinePassed
-                                      ? 'Tenggat waktu sudah lewat'
-                                      : 'Ketuk untuk pilih bucket',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: _filePicked != null
-                                        ? _primary
-                                        : Colors.grey.shade500,
-                                    fontWeight: _filePicked != null
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                if (_filePicked == null && !deadlinePassed)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      'PDF, DOC, DOCX, JPG, PNG',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Catatan siswa
-                        const Text(
-                          'Catatan (opsional)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1F36),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _catatanController,
-                          enabled: !deadlinePassed,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: 'Tulis catatan untuk guru...',
-                            hintStyle: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade400,
-                            ),
-                            filled: true,
-                            fillColor: deadlinePassed
-                                ? Colors.grey.shade100
-                                : const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade300,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade300,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: _primary),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Tombol kumpulkan
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: (_isUploading || deadlinePassed)
-                                ? null
-                                : _kumpulkanTugas,
-                            icon: _isUploading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    sudahKumpul
-                                        ? Icons.update_rounded
-                                        : Icons.send_rounded,
-                                    size: 18,
-                                  ),
-                            label: Text(
-                              _isUploading
-                                  ? 'Mengupload...'
-                                  : sudahKumpul
-                                  ? 'Perbarui Jawaban'
-                                  : 'Kumpulkan Tugas',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: deadlinePassed
-                                  ? Colors.grey
-                                  : _primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                        if (deadlinePassed)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Center(
-                              child: Text(
-                                'Tenggat waktu sudah lewat, tidak bisa mengumpulkan',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.redAccent,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 32),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildCardInfoTugas(Map<String, dynamic> tugas) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 5,
+            decoration: const BoxDecoration(
+              color: _primary,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tugas['judul_tugas'] ?? '-',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1F36),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  tugas['mata_pelajaran']?['nama_mapel'] ?? '-',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF9AA0B2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFFF1F3F9)),
+                const SizedBox(height: 12),
+                _infoRow(
+                  Icons.class_rounded,
+                  'Kelas',
+                  tugas['kelas']?['nama_kelas'] ?? '-',
+                ),
+                const SizedBox(height: 8),
+                _infoRow(
+                  Icons.access_time_rounded,
+                  'Tenggat',
+                  _formatTanggal(tugas['tenggat_waktu']),
+                  valueColor: _deadlinePassed
+                      ? Colors.redAccent
+                      : const Color(0xFF1A1F36),
+                ),
+                const SizedBox(height: 8),
+                _infoRow(
+                  Icons.school_rounded,
+                  'Semester',
+                  'Semester ${tugas['semester'] ?? '-'}  •  ${tugas['tahun_ajaran'] ?? '-'}',
+                ),
+                if (tugas['deskripsi'] != null &&
+                    tugas['deskripsi'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Deskripsi Tugas',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1F36),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tugas['deskripsi'],
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF4B5563),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+                // Tombol lihat file soal
+                if (tugas['url_file_materi'] != null &&
+                    tugas['url_file_materi'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      // SESUDAH
+                      onPressed: () async {
+                        final url = Uri.parse(tugas['url_file_materi']);
+                        try {
+                          final launched = await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
+                          if (!launched && context.mounted) {
+                            await launchUrl(url, mode: LaunchMode.inAppWebView);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Tidak bisa membuka file: $e'),
+                                backgroundColor: Colors.redAccent,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.attach_file_rounded, size: 16),
+                      label: const Text('Lihat File Soal'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        side: const BorderSide(color: _primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBannerStatus(String status) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _statusBg(status),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _statusColor(status).withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(_statusIcon(status), color: _statusColor(status), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _statusLabel(status),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _statusColor(status),
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Dikumpulkan: ${_formatTanggal(_pengumpulan!['waktu_pengumpulan'])}',
+                  style: TextStyle(fontSize: 11, color: _statusColor(status)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormUpload(bool sudahKumpul) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            sudahKumpul ? 'Perbarui Jawaban' : 'Upload Jawaban',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1F36),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sudahKumpul
+                ? 'Kamu sudah mengumpulkan. Bisa diperbarui selama belum dinilai.'
+                : _deadlinePassed
+                ? 'Tenggat sudah lewat. Jawaban tetap bisa dikumpulkan namun ditandai terlambat.'
+                : 'Upload file jawaban kamu (PDF, Word, atau gambar)',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF9AA0B2)),
+          ),
+          const SizedBox(height: 16),
+
+          // Area pilih file
+          GestureDetector(
+            onTap: _pickFile,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _filePicked != null
+                    ? const Color(0xFFF0F9FF)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _filePicked != null ? _primary : Colors.grey.shade300,
+                  width: _filePicked != null ? 1.5 : 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    _filePicked != null
+                        ? Icons.insert_drive_file_rounded
+                        : Icons.cloud_upload_rounded,
+                    size: 40,
+                    color: _filePicked != null
+                        ? _primary
+                        : Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _filePicked != null
+                        ? _filePickedName!
+                        : 'Ketuk untuk pilih file',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _filePicked != null
+                          ? _primary
+                          : Colors.grey.shade500,
+                      fontWeight: _filePicked != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_filePicked == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'PDF, DOC, DOCX, JPG, PNG',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    ),
+                  // Tampilkan file lama jika sudah pernah kumpul
+                  if (_filePicked == null &&
+                      sudahKumpul &&
+                      _pengumpulan?['url_file_bukti'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final url = Uri.parse(
+                            _pengumpulan!['url_file_bukti'],
+                          );
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                        label: const Text('Lihat file yang sudah dikumpulkan'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _primary,
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Catatan siswa
+          const Text(
+            'Catatan (opsional)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A1F36),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _catatanController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Tulis catatan untuk guru...',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: _primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Tombol kumpulkan
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUploading ? null : _kumpulkanTugas,
+              icon: _isUploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Icon(
+                      sudahKumpul ? Icons.update_rounded : Icons.send_rounded,
+                      size: 18,
+                    ),
+              label: Text(
+                _isUploading
+                    ? 'Mengupload...'
+                    : sudahKumpul
+                    ? 'Perbarui Jawaban'
+                    : 'Kumpulkan Tugas',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+
+          // Warning jika terlambat
+          if (_deadlinePassed)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 13,
+                    color: Colors.redAccent.shade200,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tenggat sudah lewat — akan ditandai terlambat',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.redAccent.shade200,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -643,7 +740,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
         Icon(icon, size: 16, color: const Color(0xFF9AA0B2)),
         const SizedBox(width: 8),
         SizedBox(
-          width: 90,
+          width: 70,
           child: Text(
             label,
             style: const TextStyle(fontSize: 12, color: Color(0xFF9AA0B2)),

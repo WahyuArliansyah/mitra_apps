@@ -238,7 +238,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // ✅ Tombol download
+          // Tombol download
           _isDownloading
               ? const Padding(
                   padding: EdgeInsets.all(16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class InputNilaiView extends StatefulWidget {
   final Map<String, dynamic> siswa;
@@ -269,25 +270,65 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (widget.pengumpulan!['url_file_bukti'] != null)
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.attach_file_rounded,
-                            color: _primary,
-                            size: 16,
+                      GestureDetector(
+                        onTap: () async {
+                          final url = Uri.parse(
+                            widget.pengumpulan!['url_file_bukti'],
+                          );
+                          try {
+                            final launched = await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                            if (!launched && context.mounted) {
+                              await launchUrl(
+                                url,
+                                mode: LaunchMode.inAppWebView,
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Tidak bisa membuka file: $e'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 12,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'File terlampir',
-                              style: const TextStyle(
-                                color: _primary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: _primary.withOpacity(0.3),
                             ),
                           ),
-                        ],
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.open_in_new_rounded,
+                                color: _primary,
+                                size: 16,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Buka File Jawaban Siswa',
+                                style: TextStyle(
+                                  color: _primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     if (widget.pengumpulan!['catatan_siswa'] != null &&
                         widget.pengumpulan!['catatan_siswa']
