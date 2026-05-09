@@ -45,11 +45,11 @@ dependencies:
   shared_preferences: ^2.5.5
   provider: ^6.1.5+1
   pdf: ^3.11.0
-  url_launcher: ^6.3.0
   printing: ^5.13.1
   disable_battery_optimization_2: ^2.0.0
   auto_start_flutter: ^1.4.0
   google_fonts: ^8.1.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
