@@ -202,4 +202,32 @@ class SiswaService {
       return false;
     }
   }
+
+  // Reset Password Siswa (admin)
+  Future<bool> resetPasswordSiswa(String idSiswa, String nis) async {
+    try {
+      // 1. Hash password (NIS sebagai password default)
+      final hashedPassword = await supabase.rpc(
+        'hash_password',
+        params: {'plain_password': nis},
+      );
+
+      // 2. Update kata_sandi di tabel pengguna
+      await supabase
+          .from('pengguna')
+          .update({'kata_sandi': hashedPassword})
+          .eq('id', idSiswa);
+
+      // 3. Reset password di auth.users via RPC
+      await supabase.rpc(
+        'reset_user_password',
+        params: {'uid': idSiswa, 'new_password': nis},
+      );
+
+      return true;
+    } catch (e) {
+      print('Error Reset Password Siswa: $e');
+      return false;
+    }
+  }
 }

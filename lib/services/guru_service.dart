@@ -208,4 +208,32 @@ class GuruService {
       return false;
     }
   }
+
+  // Reset Password Guru (admin yang melakukan reset untuk guru lain)
+  Future<bool> resetPasswordGuru(String idGuru, String nip) async {
+    try {
+      // 1. Hash password (NIP sebagai password default)
+      final hashedPassword = await supabase.rpc(
+        'hash_password',
+        params: {'plain_password': nip},
+      );
+
+      // 2. Update kata_sandi di tabel pengguna
+      await supabase
+          .from('pengguna')
+          .update({'kata_sandi': hashedPassword})
+          .eq('id', idGuru);
+
+      // 3. Reset password di auth.users via RPC
+      await supabase.rpc(
+        'reset_user_password',
+        params: {'uid': idGuru, 'new_password': nip},
+      );
+
+      return true;
+    } catch (e) {
+      print('Error Reset Password Guru: $e');
+      return false;
+    }
+  }
 }

@@ -284,6 +284,7 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // tombol edit data guru
             IconButton(
               icon: const Icon(
                 Icons.edit_note_rounded,
@@ -291,6 +292,63 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
               ),
               onPressed: () => _tampilkanForm(guru: guru),
             ),
+
+            // tombol reset password guru
+            IconButton(
+              icon: const Icon(Icons.lock_reset_rounded, color: Colors.orange),
+              tooltip: 'Reset Password',
+              onPressed: () async {
+                final konfirmasi = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: const Text('Reset Password'),
+                    content: Text(
+                      'Reset password "${guru.namaLengkap}" kembali ke NIP?\n\n'
+                      'Password baru: ${guru.nip}',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Batal'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Reset',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (konfirmasi != true) return;
+
+                setState(() => _isLoading = true);
+                final sukses = await _guruService.resetPasswordGuru(
+                  guru.idGuru!,
+                  guru.nip!,
+                );
+                setState(() => _isLoading = false);
+                _showSnackbar(
+                  sukses
+                      ? 'Password berhasil direset ke NIP'
+                      : 'Gagal reset password',
+                  isError: !sukses,
+                );
+              },
+            ),
+
+            // Tombol hapus data guru
             IconButton(
               icon: const Icon(
                 Icons.delete_sweep_rounded,

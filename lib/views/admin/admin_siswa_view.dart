@@ -495,6 +495,65 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                 }
               }
             },
+            onResetPassword: () async {
+              final nis = siswa['nis']?.toString() ?? '';
+              final konfirmasi = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.lock_reset_rounded, color: Color(0xFFD97706)),
+                      SizedBox(width: 8),
+                      Text('Reset Password', style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                  content: Text(
+                    'Reset password "${siswa['nama_siswa']}" kembali ke NIS?\n\n'
+                    'Password baru: $nis',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text(
+                        'Batal',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (konfirmasi != true || !mounted) return;
+
+              setState(() => _isLoading = true);
+              final sukses = await _siswaService.resetPasswordSiswa(
+                idSiswa,
+                nis,
+              );
+              if (mounted) {
+                setState(() => _isLoading = false);
+                _showSnackbar(
+                  sukses
+                      ? 'Password berhasil direset ke NIS'
+                      : 'Gagal reset password',
+                  isError: !sukses,
+                );
+              }
+            },
           );
         },
       ),

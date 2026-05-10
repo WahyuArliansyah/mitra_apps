@@ -8,6 +8,7 @@ class SiswaCard extends StatelessWidget {
   final VoidCallback onLongPress;
   final VoidCallback onEdit;
   final VoidCallback onHapus;
+  final VoidCallback onResetPassword; // ← tambahan
 
   static const _primary = Color(0xFF4338CA);
 
@@ -20,11 +21,11 @@ class SiswaCard extends StatelessWidget {
     required this.onLongPress,
     required this.onEdit,
     required this.onHapus,
+    required this.onResetPassword,
   });
 
   @override
   Widget build(BuildContext context) {
-    final idSiswa = siswa['id_siswa'].toString();
     final inisial = siswa['nama_siswa'].toString().isNotEmpty
         ? siswa['nama_siswa']
               .toString()
@@ -106,6 +107,7 @@ class SiswaCard extends StatelessWidget {
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Tombol Edit
                     _actionBtn(
                       Icons.edit_rounded,
                       const Color(0xFF4E73DF),
@@ -113,6 +115,15 @@ class SiswaCard extends StatelessWidget {
                       onEdit,
                     ),
                     const SizedBox(width: 6),
+                    // Tombol Reset Password
+                    _actionBtn(
+                      Icons.lock_reset_rounded,
+                      const Color(0xFFD97706),
+                      const Color(0xFFFEF3E0),
+                      onResetPassword,
+                    ),
+                    const SizedBox(width: 6),
+                    // Tombol Hapus
                     _actionBtn(
                       Icons.delete_rounded,
                       Colors.redAccent,
