@@ -50,6 +50,15 @@ class SiswaAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
 
     if (ok == true && context.mounted) {
+      // Hapus FCM token sebelum logout
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Supabase.instance.client
+            .from('pengguna')
+            .update({'fcm_token': null})
+            .eq('id', user.id);
+      }
+
       await Supabase.instance.client.auth.signOut();
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(

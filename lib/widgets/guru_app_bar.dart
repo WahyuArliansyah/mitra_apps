@@ -27,15 +27,11 @@ class GuruAppBar extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    //[cite: 4]
     final ok = await showDialog<bool>(
-      //[cite: 4]
-      context: context, //[cite: 4]
+      context: context,
       builder: (ctx) => AlertDialog(
         //[cite: 4]
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ), //[cite: 4]
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Konfirmasi Logout'), //[cite: 4]
         content: const Text('Yakin ingin keluar dari akun ini?'), //[cite: 4]
         actions: [
@@ -64,15 +60,21 @@ class GuruAppBar extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      //[cite: 4]
-      await Supabase.instance.client.auth.signOut(); //[cite: 4]
+      // Hapus FCM token sebelum logout
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Supabase.instance.client
+            .from('pengguna')
+            .update({'fcm_token': null})
+            .eq('id', user.id);
+      }
+
+      await Supabase.instance.client.auth.signOut();
       if (context.mounted) {
-        //[cite: 4]
         Navigator.pushAndRemoveUntil(
-          //[cite: 4]
-          context, //[cite: 4]
-          MaterialPageRoute(builder: (_) => const LoginView()), //[cite: 4]
-          (route) => false, //[cite: 4]
+          context,
+          MaterialPageRoute(builder: (_) => const LoginView()),
+          (route) => false,
         );
       }
     }

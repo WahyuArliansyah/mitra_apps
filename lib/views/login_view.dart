@@ -24,11 +24,11 @@ class _LoginViewState extends State<LoginView> {
   // Fungsi khusus untuk menyimpan token ke tabel 'pengguna'
   Future<void> _updateFCMToken(String idPengguna, String role) async {
     // Sesuai permintaanmu, kita fokuskan update token ini untuk siswa saja.
-    // (Hapus pengecekan if ini jika nanti guru juga butuh notifikasi popup)
     if (role != 'siswa') return;
     final supabase = Supabase.instance.client;
-
+    await Future.delayed(const Duration(seconds: 2));
     try {
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
       // 1. Minta izin notifikasi ke pengguna (Wajib untuk Android 13+)
       NotificationSettings settings = await FirebaseMessaging.instance
           .requestPermission();
@@ -42,8 +42,6 @@ class _LoginViewState extends State<LoginView> {
           await supabase
               .from('pengguna')
               .update({'fcm_token': fcmToken})
-              // Sesuaikan 'id_pengguna' dengan nama kolom Primary Key di tabel penggunamu
-              // (Bisa 'id', 'username', atau 'id_pengguna')
               .eq('id', idPengguna);
 
           debugPrint('FCM Token Siswa berhasil diupdate: $fcmToken');
@@ -52,7 +50,7 @@ class _LoginViewState extends State<LoginView> {
         debugPrint('Siswa menolak izin notifikasi');
       }
     } catch (e) {
-      debugPrint('Gagal mengambil/menyimpan FCM token: $e');
+      debugPrint("Error FCM Xiaomi: $e");
     }
   }
 

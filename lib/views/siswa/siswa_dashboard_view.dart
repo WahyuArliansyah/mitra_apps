@@ -36,6 +36,12 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        // Hanya unfocus saat user tap tab, bukan saat swipe
+        _loadData();
+      }
+    });
     _loadData();
   }
 
@@ -162,16 +168,7 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: _isLoading
-          ? AppBar(
-              backgroundColor: _primary,
-              elevation: 0,
-              title: const Text(
-                'Loading...',
-                style: TextStyle(color: Colors.white),
-              ),
-            )
-          : SiswaAppBar(namaSiswa: _namaSiswa),
+      appBar: SiswaAppBar(namaSiswa: _namaSiswa),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
           : Column(
@@ -211,13 +208,21 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
                   ),
                 ),
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadData,
-                    color: _primary,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [_buildListTugas(), _buildListMateri()],
-                    ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Bungkus masing-masing list dengan RefreshIndicator
+                      RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: _primary,
+                        child: _buildListTugas(),
+                      ),
+                      RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: _primary,
+                        child: _buildListMateri(),
+                      ),
+                    ],
                   ),
                 ),
               ],

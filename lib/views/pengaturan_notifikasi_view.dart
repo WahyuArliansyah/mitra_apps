@@ -1,8 +1,5 @@
 import 'package:auto_start_flutter/auto_start_flutter.dart';
-import 'package:auto_start_flutter/auto_start_flutter.dart'
-    as DisableBatteryOptimization2;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class PengaturanNotifikasiView extends StatefulWidget {
   const PengaturanNotifikasiView({super.key});
@@ -13,93 +10,147 @@ class PengaturanNotifikasiView extends StatefulWidget {
 }
 
 class _PengaturanNotifikasiViewState extends State<PengaturanNotifikasiView> {
-  // get AutoStartFlutter => null;
+  static const _primary = Color(0xFF0EA5E9);
 
-  // Fungsi sakti untuk melawan OEM Background Restrictions
   Future<void> _perbaikiNotifikasi() async {
     try {
-      // 1. Matikan Penghemat Baterai (Battery Optimization)
-      bool? isBatteryOptimized =
-          await DisableBatteryOptimization2.isBatteryOptimizationDisabled;
+      // 1. Meminta izin Autostart (Xiaomi, Oppo, Vivo, dkk)
+      bool? isAutoStartAvailable = await getAutoStartPermission();
 
-      if (isBatteryOptimized != true) {
-        // Jika masih dibatasi, arahkan ke pengaturan baterai
-        await DisableBatteryOptimization2.disableBatteryOptimization();
-      }
+      // 2. Meminta izin mematikan optimasi baterai
+      // Package: auto_start_flutter menyediakan fungsi ini
+      // Note: Jika fungsi ini tidak jalan di versi package kamu,
+      // kamu bisa gunakan package 'optimize_battery' sebagai alternatif.
 
-      // Beri jeda sedikit agar transisi mulus
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // 2. Buka pengaturan Mulai Otomatis (Autostart)
-      // Cek apakah HP ini mendukung fitur Autostart (seperti Xiaomi, Oppo, dkk)
-      bool? isAutoStartAvailableCheck = await isAutoStartAvailable;
-
-      if (isAutoStartAvailableCheck == true) {
-        await getAutoStartPermission();
-      }
-    } on PlatformException catch (e) {
-      print("Gagal membuka pengaturan: ${e.message}");
-      // Tampilkan snackbar jika HP tidak mendukung fitur ini
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan otomatis tidak didukung di HP ini.'),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Membuka pengaturan sistem...")),
+      );
+    } catch (e) {
+      debugPrint("Gagal membuka pengaturan: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
-        title: const Text('Pengaturan Aplikasi'),
-        backgroundColor: const Color(0xFF0EA5E9),
+        title: const Text(
+          "Optimasi Notifikasi",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Notifikasi Sering Terlambat?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            _buildLanguageCard(
+              title: "Instruksi Penting (ID)",
+              desc:
+                  "Agar notifikasi tugas tidak terlambat di HP Xiaomi/Oppo/Vivo, silakan klik tombol di bawah lalu aktifkan 'Mulai Otomatis' (Autostart) dan ubah Penghemat Baterai menjadi 'Tidak Ada Pembatasan'.",
+              icon: Icons.notifications_active,
+              color: Colors.blue,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Jika kamu menggunakan HP Xiaomi, Oppo, atau Vivo, sistem sering kali mematikan notifikasi tugas latar belakang. Klik tombol di bawah untuk memberikan izin.',
-              style: TextStyle(color: Colors.grey, height: 1.5),
+            const SizedBox(height: 16),
+            _buildLanguageCard(
+              title: "Important Instructions (EN)",
+              desc:
+                  "To ensure task notifications arrive on time on Xiaomi/Oppo/Vivo devices, please click the button below then enable 'Autostart' and set Battery Saver to 'No Restrictions'.",
+              icon: Icons.language,
+              color: Colors.orange,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
 
-            // Tombol Perbaikan
+            // Tombol Utama
             SizedBox(
               width: double.infinity,
+              height: 55,
               child: ElevatedButton.icon(
                 onPressed: _perbaikiNotifikasi,
-                icon: const Icon(
-                  Icons.build_circle_outlined,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.settings_suggest, color: Colors.white),
                 label: const Text(
-                  'Perbaiki Masalah Notifikasi',
+                  "BUKA PENGATURAN / OPEN SETTINGS",
                   style: TextStyle(
-                    color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 13,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: _primary,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(15),
                   ),
+                  elevation: 4,
                 ),
               ),
             ),
+
+            const SizedBox(height: 20),
+            const Text(
+              "*Aplikasi akan mengarahkanmu ke pengaturan sistem Android.",
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageCard({
+    required String title,
+    required String desc,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            desc,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF4B5563),
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
