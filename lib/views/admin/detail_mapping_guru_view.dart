@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/widgets/filter_bar_mapping.dart';
-import 'package:mitra_apps/widgets/form_penugasan_dialog.dart';
-import 'package:mitra_apps/widgets/mapping_card.dart';
+import 'package:mitra_apps/widgets/admin/filter_bar_mapping.dart';
+import 'package:mitra_apps/widgets/admin/form_penugasan_dialog.dart';
+import 'package:mitra_apps/widgets/admin/mapping_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DetailMappingGuruView extends StatefulWidget {

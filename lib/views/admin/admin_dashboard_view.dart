@@ -5,8 +5,8 @@ import 'package:mitra_apps/views/admin/admin_siswa_view.dart';
 import 'package:mitra_apps/views/admin/kelola_guru_view.dart';
 import 'package:mitra_apps/views/admin/kelola_mapping_guru_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
-import 'package:mitra_apps/widgets/menu_tile.dart';
-import 'package:mitra_apps/widgets/stat_card.dart';
+import 'package:mitra_apps/widgets/admin/menu_tile.dart';
+import 'package:mitra_apps/widgets/admin/stat_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminDashboardView extends StatefulWidget {
@@ -154,7 +154,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     const SizedBox(height: 28),
                     _buildSectionLabel('Menu Utama'),
                     const SizedBox(height: 12),
-                    // ✅ Pakai MenuTile dari widgets/
+                    // Pakai MenuTile dari widgets/
                     MenuTile(
                       title: 'Data Kelas',
                       icon: Icons.class_rounded,

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mitra_apps/views/guru/materi/buat_materi_view.dart';
 import 'package:mitra_apps/views/guru/tugas/buat_tugas_view.dart';
 import 'package:mitra_apps/views/guru/tugas/detail_tugas_view.dart';
-import 'package:mitra_apps/widgets/guru_app_bar.dart';
-import 'package:mitra_apps/widgets/tugas_card.dart';
+import 'package:mitra_apps/widgets/guru/guru_app_bar.dart';
+import 'package:mitra_apps/widgets/guru/tugas_card_guru.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruDashboardView extends StatefulWidget {

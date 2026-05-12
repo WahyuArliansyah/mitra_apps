@@ -35,8 +35,14 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   @override
   void initState() {
     super.initState();
-    debugPrint('Data tugas: ${widget.tugas}');
-    debugPrint('url_file_materi: ${widget.tugas['url_file_materi']}');
+    debugPrint(
+      'Deadline raw:  ${DateTime.parse(widget.tugas['tenggat_waktu']).toLocal()}',
+    );
+    debugPrint(
+      'Deadline parsed: ${DateTime.parse(widget.tugas['tenggat_waktu']).toLocal()}',
+    );
+    debugPrint('Now: ${DateTime.now()}');
+    debugPrint('_deadlinePassed: $_deadlinePassed');
     _cekPengumpulan();
   }
 
@@ -50,7 +56,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     final deadline = widget.tugas['tenggat_waktu'];
     if (deadline == null) return false;
     try {
-      return DateTime.parse(deadline).toLocal().isBefore(DateTime.now());
+      return DateTime.parse(deadline).isBefore(DateTime.now());
     } catch (_) {
       return false;
     }
@@ -187,9 +193,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   String _formatTanggal(String? isoDate) {
     if (isoDate == null) return '-';
     try {
-      return DateFormat(
-        'dd MMM yyyy, HH:mm',
-      ).format(DateTime.parse(isoDate).toLocal());
+      return DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(isoDate));
     } catch (_) {
       return isoDate;
     }
@@ -247,8 +251,8 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     final statusPengumpulan = _pengumpulan?['status_pengumpulan'] ?? 'menunggu';
     final sudahDinilai = statusPengumpulan == 'dinilai';
 
-    // Tidak bisa update jika sudah dinilai
-    final bisaEdit = !sudahDinilai;
+    // Tidak bisa edit jika sudah dinilai ATAU deadline lewat & belum pernah kumpul
+    final bisaEdit = !sudahDinilai && !_deadlinePassed;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
@@ -271,20 +275,56 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Card Info Tugas ────────────────────────────────────
+                  // Card info tugas
                   _buildCardInfoTugas(tugas),
                   const SizedBox(height: 16),
 
-                  // ── Banner Status Pengumpulan ──────────────────────────
+                  // Banner tenggat waktu sudah dekat
+                  if (_deadlinePassed && !sudahKumpul && !sudahDinilai) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFEDED),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.4),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.cancel_rounded,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Tenggat waktu sudah berakhir. Kamu tidak dapat mengumpulkan tugas ini.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Banner status pengumpulan
                   if (sudahKumpul) ...[
                     _buildBannerStatus(statusPengumpulan),
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Form Upload ────────────────────────────────────────
+                  //  Form upload tugas (jika belum dinilai)
                   if (bisaEdit) _buildFormUpload(sudahKumpul),
 
-                  // ── Info sudah dinilai, tidak bisa edit ────────────────
+                  // Info sudah dinilai, tidak bisa edit
                   if (sudahDinilai)
                     Container(
                       width: double.infinity,

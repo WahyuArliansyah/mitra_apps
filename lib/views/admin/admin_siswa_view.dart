@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/models/siswa_model.dart';
 import 'package:mitra_apps/services/siswa_service.dart';
-import 'package:mitra_apps/widgets/bulk_action_dialog.dart';
-import 'package:mitra_apps/widgets/siswa_card.dart';
-import 'package:mitra_apps/widgets/siswa_search_filter.dart';
+import 'package:mitra_apps/widgets/admin/bulk_action_dialog.dart';
+import 'package:mitra_apps/widgets/siswa/siswa_card.dart';
+import 'package:mitra_apps/widgets/siswa/siswa_search_filter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminSiswaView extends StatefulWidget {

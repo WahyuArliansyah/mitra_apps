@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/services/read_status_service.dart';
 import 'package:mitra_apps/views/siswa/detail_tugas_siswa.dart';
-import 'package:mitra_apps/widgets/siswa_app_bar.dart';
+import 'package:mitra_apps/widgets/siswa/materi_card.dart';
+import 'package:mitra_apps/widgets/siswa/siswa_app_bar.dart';
+import 'package:mitra_apps/widgets/siswa/tab_badge.dart';
+import 'package:mitra_apps/widgets/siswa/tugas_card_siswa.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class SiswaDashboardView extends StatefulWidget {
   final String idSiswa;
@@ -16,7 +18,10 @@ class SiswaDashboardView extends StatefulWidget {
 
 class _SiswaDashboardViewState extends State<SiswaDashboardView>
     with SingleTickerProviderStateMixin {
-  final supabase = Supabase.instance.client;
+  final _supabase = Supabase.instance.client;
+  late final ReadStatusService _readService;
+  late TabController _tabController;
+
   static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
 
@@ -26,21 +31,30 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
   List<Map<String, dynamic>> _listTugas = [];
   List<Map<String, dynamic>> _listMateri = [];
-
-  // Map<id_tugas, data_pengumpulan>
   Map<String, Map<String, dynamic>?> _statusPengumpulan = {};
 
-  late TabController _tabController;
+  Set<String> _readTugasIds = {};
+  Set<String> _readMateriIds = {};
+
+  // Getter untuk menghitung jumlah tugas dan materi yang belum dibaca
+
+  int get _unreadTugasCount => _listTugas
+      .where((t) => !_readTugasIds.contains(t['id'].toString()))
+      .length;
+
+  int get _unreadMateriCount => _listMateri
+      .where((m) => !_readMateriIds.contains(m['id'].toString()))
+      .length;
+
+  // Fungsi untuk menandai tugas atau materi sebagai sudah dibaca
 
   @override
   void initState() {
     super.initState();
+    _readService = ReadStatusService(idSiswa: widget.idSiswa);
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        // Hanya unfocus saat user tap tab, bukan saat swipe
-        _loadData();
-      }
+      if (_tabController.indexIsChanging) _loadData();
     });
     _loadData();
   }
@@ -51,11 +65,17 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     super.dispose();
   }
 
+  // Mengambil data tugas, materi, dan status baca dari Supabase
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Ambil data siswa
-      final siswaData = await supabase
+      // Load status baca
+      _readTugasIds = await _readService.getReadTugasIds();
+      _readMateriIds = await _readService.getReadMateriIds();
+
+      // Ambil data siswa
+      final siswaData = await _supabase
           .from('siswa')
           .select('nama_siswa, id_kelas')
           .eq('id_siswa', widget.idSiswa)
@@ -69,8 +89,8 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       _namaSiswa = siswaData['nama_siswa'] ?? 'Siswa';
       _idKelas = siswaData['id_kelas']?.toString() ?? '';
 
-      // 2. Ambil tugas: hanya type_tugas=teori & metode=upload
-      final tugasData = await supabase
+      // Ambil tugas
+      final tugasData = await _supabase
           .from('tugas')
           .select('*, kelas(nama_kelas), mata_pelajaran(nama_mapel)')
           .eq('id_kelas', _idKelas)
@@ -80,30 +100,27 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
       final listTugas = List<Map<String, dynamic>>.from(tugasData);
 
-      // 3. Ambil semua pengumpulan siswa ini sekaligus (1 query)
+      // Ambil status pengumpulan
       final idTugasList = listTugas.map((t) => t['id']).toList();
-      Map<String, Map<String, dynamic>?> statusMap = {};
+      final Map<String, Map<String, dynamic>?> statusMap = {};
 
       if (idTugasList.isNotEmpty) {
-        final pengumpulanData = await supabase
+        final pengumpulanData = await _supabase
             .from('pengumpulan')
             .select()
             .eq('id_siswa', widget.idSiswa)
             .inFilter('id_tugas', idTugasList);
 
-        // Mapping id_tugas -> data pengumpulan
         for (final p in pengumpulanData) {
           statusMap[p['id_tugas'].toString()] = Map<String, dynamic>.from(p);
         }
       }
-
-      // Tugas yang belum dikumpulkan tetap null di map
       for (final t in listTugas) {
         statusMap.putIfAbsent(t['id'].toString(), () => null);
       }
 
-      // 4. Ambil materi
-      final materiData = await supabase
+      // Ambil materi
+      final materiData = await _supabase
           .from('materi')
           .select('*, kelas(nama_kelas), mata_pelajaran(nama_mapel)')
           .eq('id_kelas', _idKelas)
@@ -122,47 +139,30 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     }
   }
 
-  String _formatTanggal(String? isoDate) {
-    if (isoDate == null) return '-';
-    try {
-      return DateFormat(
-        'dd MMM yyyy',
-      ).format(DateTime.parse(isoDate).toLocal());
-    } catch (_) {
-      return isoDate;
-    }
+  // Tugas dan Materi Tap Handler
+
+  Future<void> _onTugasTap(Map<String, dynamic> tugas) async {
+    await _readService.markTugasAsRead(tugas['id'].toString(), _readTugasIds);
+    if (!mounted) return;
+    setState(() {});
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailTugasSiswa(tugas: tugas, idSiswa: widget.idSiswa),
+      ),
+    );
+    _loadData();
   }
 
-  String _formatTenggat(String? isoDate) {
-    if (isoDate == null) return '-';
-    try {
-      return DateFormat(
-        'dd MMM yyyy, HH:mm',
-      ).format(DateTime.parse(isoDate).toLocal());
-    } catch (_) {
-      return isoDate;
-    }
+  Future<void> _onMateriTap(Map<String, dynamic> materi) async {
+    await _readService.markMateriAsRead(
+      materi['id'].toString(),
+      _readMateriIds,
+    );
+    if (mounted) setState(() {});
   }
 
-  bool _isDeadlineNear(String? isoDate) {
-    if (isoDate == null) return false;
-    try {
-      final deadline = DateTime.parse(isoDate).toLocal();
-      final diff = deadline.difference(DateTime.now()).inDays;
-      return diff <= 2 && deadline.isAfter(DateTime.now());
-    } catch (_) {
-      return false;
-    }
-  }
-
-  bool _isDeadlinePassed(String? isoDate) {
-    if (isoDate == null) return false;
-    try {
-      return DateTime.parse(isoDate).toLocal().isBefore(DateTime.now());
-    } catch (_) {
-      return false;
-    }
-  }
+  // Build UI
 
   @override
   Widget build(BuildContext context) {
@@ -173,45 +173,11 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
           ? const Center(child: CircularProgressIndicator(color: _primary))
           : Column(
               children: [
-                // TabBar
-                Container(
-                  color: Colors.white,
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: _primary,
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: _primary,
-                    indicatorWeight: 3,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-                    tabs: [
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.assignment_rounded, size: 18),
-                            const SizedBox(width: 6),
-                            Text('Tugas (${_listTugas.length})'),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.menu_book_rounded, size: 18),
-                            const SizedBox(width: 6),
-                            Text('Materi (${_listMateri.length})'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildTabBar(),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      // Bungkus masing-masing list dengan RefreshIndicator
                       RefreshIndicator(
                         onRefresh: _loadData,
                         color: _primary,
@@ -230,7 +196,50 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     );
   }
 
-  // ── LIST TUGAS ─────────────────────────────────────────────────────────────
+  Widget _buildTabBar() {
+    return Container(
+      color: Colors.white,
+      child: TabBar(
+        controller: _tabController,
+        labelColor: _primary,
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: _primary,
+        indicatorWeight: 3,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.assignment_rounded, size: 18),
+                const SizedBox(width: 6),
+                Text('Tugas (${_listTugas.length})'),
+                if (_unreadTugasCount > 0) ...[
+                  const SizedBox(width: 6),
+                  TabBadge(count: _unreadTugasCount),
+                ],
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.menu_book_rounded, size: 18),
+                const SizedBox(width: 6),
+                Text('Materi (${_listMateri.length})'),
+                if (_unreadMateriCount > 0) ...[
+                  const SizedBox(width: 6),
+                  TabBadge(count: _unreadMateriCount),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildListTugas() {
     if (_listTugas.isEmpty) {
       return _buildKosong(
@@ -245,320 +254,16 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) {
         final tugas = _listTugas[i];
-        final pengumpulan = _statusPengumpulan[tugas['id'].toString()];
-        return _buildTugasCard(tugas, pengumpulan);
+        return TugasCard(
+          tugas: tugas,
+          pengumpulan: _statusPengumpulan[tugas['id'].toString()],
+          isUnread: !_readTugasIds.contains(tugas['id'].toString()),
+          onTap: () => _onTugasTap(tugas),
+        );
       },
     );
   }
 
-  Widget _buildTugasCard(
-    Map<String, dynamic> tugas,
-    Map<String, dynamic>? pengumpulan,
-  ) {
-    final deadline = tugas['tenggat_waktu']?.toString();
-    final isNear = _isDeadlineNear(deadline);
-    final isPassed = _isDeadlinePassed(deadline);
-
-    // Status pengumpulan
-    final sudahKumpul = pengumpulan != null;
-    final statusKumpul = pengumpulan?['status_pengumpulan'] as String?;
-
-    // Tentukan chip status pengumpulan
-    final _StatusInfo statusInfo = _getStatusInfo(
-      sudahKumpul: sudahKumpul,
-      statusKumpul: statusKumpul,
-      isPassed: isPassed,
-    );
-
-    // Warna tenggat
-    Color deadlineColor = const Color(0xFF6B7280);
-    if (isPassed) deadlineColor = Colors.redAccent;
-    if (isNear && !isPassed) deadlineColor = const Color(0xFFD97706);
-
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              DetailTugasSiswa(tugas: tugas, idSiswa: widget.idSiswa),
-        ),
-      ).then((_) => _loadData()),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Strip warna atas sesuai status
-            Container(
-              height: 5,
-              decoration: BoxDecoration(
-                color: statusInfo.stripColor,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Baris atas: icon + judul + badge status pengumpulan
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.assignment_rounded,
-                          color: _primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tugas['judul_tugas'] ?? '-',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A1F36),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              tugas['mata_pelajaran']?['nama_mapel'] ?? '-',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF9AA0B2),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Badge status pengumpulan (full width, mencolok)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusInfo.bgColor,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: statusInfo.color.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          statusInfo.icon,
-                          size: 16,
-                          color: statusInfo.color,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          statusInfo.label,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: statusInfo.color,
-                          ),
-                        ),
-                        if (sudahKumpul &&
-                            pengumpulan?['waktu_pengumpulan'] != null) ...[
-                          const Spacer(),
-                          Text(
-                            _formatTenggat(pengumpulan!['waktu_pengumpulan']),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: statusInfo.color,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  if (tugas['deskripsi'] != null &&
-                      tugas['deskripsi'].toString().isNotEmpty) ...[
-                    Text(
-                      tugas['deskripsi'],
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF4B5563),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  const Divider(height: 1, color: Color(0xFFF1F3F9)),
-                  const SizedBox(height: 10),
-
-                  // Footer: kelas + tenggat
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.class_rounded,
-                        size: 14,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        tugas['kelas']?['nama_kelas'] ?? '-',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        isPassed
-                            ? Icons.warning_rounded
-                            : Icons.access_time_rounded,
-                        size: 14,
-                        color: deadlineColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatTenggat(deadline),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: deadlineColor,
-                          fontWeight: isNear || isPassed
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Tombol aksi
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailTugasSiswa(
-                            tugas: tugas,
-                            idSiswa: widget.idSiswa,
-                          ),
-                        ),
-                      ).then((_) => _loadData()),
-                      icon: Icon(
-                        sudahKumpul
-                            ? Icons.visibility_rounded
-                            : Icons.upload_file_rounded,
-                        size: 16,
-                      ),
-                      label: Text(
-                        sudahKumpul ? 'Lihat Detail' : 'Kumpulkan Tugas',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: statusInfo.color,
-                        side: BorderSide(color: statusInfo.color),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        textStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Tentukan info visual badge berdasarkan status pengumpulan
-  _StatusInfo _getStatusInfo({
-    required bool sudahKumpul,
-    required String? statusKumpul,
-    required bool isPassed,
-  }) {
-    if (!sudahKumpul) {
-      // Belum dikumpulkan sama sekali
-      if (isPassed) {
-        return _StatusInfo(
-          label: 'Tidak Dikumpulkan',
-          icon: Icons.cancel_rounded,
-          color: Colors.redAccent,
-          bgColor: const Color(0xFFFFEDED),
-          stripColor: Colors.redAccent,
-        );
-      }
-      return _StatusInfo(
-        label: 'Belum Dikumpulkan',
-        icon: Icons.radio_button_unchecked_rounded,
-        color: const Color(0xFF6B7280),
-        bgColor: const Color(0xFFF3F4F6),
-        stripColor: const Color(0xFFD1D5DB),
-      );
-    }
-
-    switch (statusKumpul) {
-      case 'dinilai':
-        return _StatusInfo(
-          label: 'Sudah Dinilai',
-          icon: Icons.verified_rounded,
-          color: const Color(0xFF059669),
-          bgColor: const Color(0xFFE6FAF5),
-          stripColor: const Color(0xFF059669),
-        );
-      case 'terlambat':
-        return _StatusInfo(
-          label: 'Terlambat Dikumpulkan',
-          icon: Icons.warning_rounded,
-          color: const Color(0xFFD97706),
-          bgColor: const Color(0xFFFEF3E0),
-          stripColor: const Color(0xFFD97706),
-        );
-      default: // menunggu
-        return _StatusInfo(
-          label: 'Menunggu Penilaian',
-          icon: Icons.hourglass_top_rounded,
-          color: _primary,
-          bgColor: const Color(0xFFE0F2FE),
-          stripColor: _primary,
-        );
-    }
-  }
-
-  // Build list materi
   Widget _buildListMateri() {
     if (_listMateri.isEmpty) {
       return _buildKosong(
@@ -571,205 +276,17 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: _listMateri.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _buildMateriCard(_listMateri[i]),
+      itemBuilder: (_, i) {
+        final materi = _listMateri[i];
+        return MateriCard(
+          materi: materi,
+          isUnread: !_readMateriIds.contains(materi['id'].toString()),
+          onTap: () => _onMateriTap(materi),
+        );
+      },
     );
   }
 
-  // Build card materi
-  Widget _buildMateriCard(Map<String, dynamic> materi) {
-    const Color color = Color(0xFF7C3AED);
-    const Color bg = Color(0xFFF3F0FF);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 5,
-            decoration: const BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.menu_book_rounded,
-                        color: color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            materi['judul_materi'] ?? '-',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1F36),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            materi['mata_pelajaran']?['nama_mapel'] ?? '-',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9AA0B2),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Materi',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (materi['deskripsi'] != null &&
-                    materi['deskripsi'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    materi['deskripsi'],
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF4B5563),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFF1F3F9)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.class_rounded,
-                      size: 14,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      materi['kelas']?['nama_kelas'] ?? '-',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 14,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Smt ${materi['semester'] ?? '-'}  •  ${materi['tahun_ajaran'] ?? '-'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.access_time_rounded,
-                      size: 14,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTanggal(materi['created_at']),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-                if (materi['url_file'] != null &&
-                    materi['url_file'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final url = Uri.parse(materi['url_file']);
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(
-                            url,
-                            mode: LaunchMode.externalApplication,
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text('Buka File Materi'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: color,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        textStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // berfungsi untuk menampilkan tampilan ketika list tugas atau materi kosong,
-  // dengan ikon dan pesan yang informatif
   Widget _buildKosong({
     required IconData icon,
     required String pesan,
@@ -798,21 +315,4 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       ),
     );
   }
-}
-
-// Model info status pengumpulan untuk menentukan tampilan badge
-class _StatusInfo {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Color bgColor;
-  final Color stripColor;
-
-  const _StatusInfo({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.bgColor,
-    required this.stripColor,
-  });
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mitra_apps/widgets/siswa_app_bar.dart';
+import 'package:mitra_apps/widgets/siswa/siswa_app_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RekapNilaiSiswa extends StatefulWidget {

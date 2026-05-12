@@ -35,7 +35,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   bool _isLoading = false;
   bool _isUploading = false;
 
-  // ✅ Logika visibilitas
+  // Logika visibilitas
   // File lampiran tampil HANYA jika: teori + upload
   bool get _tampilFile => _typeTugas == 'teori' && _metode == 'upload';
 
@@ -193,7 +193,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       _showSnackbar('Judul, kelas, dan mapel wajib diisi!', isError: true);
       return;
     }
-
+    debugPrint('Deadline yang akan disimpan: ${_deadline?.toIso8601String()}');
     if (_tampilDeadline && _deadline == null) {
       _showSnackbar('Tenggat waktu wajib diisi!', isError: true);
       return;

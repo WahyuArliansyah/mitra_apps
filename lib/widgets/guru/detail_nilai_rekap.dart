@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mitra_apps/services/rekap_nilai_service.dart';
-import 'package:mitra_apps/widgets/ringkasan_nilai_card.dart';
-import 'package:mitra_apps/widgets/tabel_history_nilai.dart';
+import 'package:mitra_apps/widgets/guru/ringkasan_nilai_card.dart';
+import 'package:mitra_apps/widgets/guru/tabel_history_nilai.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
