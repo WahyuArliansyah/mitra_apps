@@ -215,12 +215,12 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             'id_mapel': _idMapelTerpilih,
             'judul_tugas': _judulCtrl.text.trim(),
             'deskripsi': _deskripsiCtrl.text.trim(),
-            'url_file_materi': urlFile,
+            'url_file_tugas': urlFile,
             'type_tugas': _typeTugas,
             'metode': _metode,
             'semester': _semester,
             'tahun_ajaran': _tahunAjaran,
-            'tenggat_waktu': _deadline?.toIso8601String(),
+            'tenggat_waktu': _deadline?.toUtc().toIso8601String(),
           })
           .select('id')
           .single();

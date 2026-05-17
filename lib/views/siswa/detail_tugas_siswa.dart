@@ -56,7 +56,12 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     final deadline = widget.tugas['tenggat_waktu'];
     if (deadline == null) return false;
     try {
-      return DateTime.parse(deadline).isBefore(DateTime.now());
+      final deadlineUtc = DateTime.parse(deadline).toUtc();
+      final nowUtc = DateTime.now().toUtc();
+      debugPrint('>>> deadlineUtc: $deadlineUtc');
+      debugPrint('>>> nowUtc: $nowUtc');
+      debugPrint('>>> isBefore: ${deadlineUtc.isBefore(nowUtc)}');
+      return deadlineUtc.isBefore(nowUtc);
     } catch (_) {
       return false;
     }
@@ -193,7 +198,9 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   String _formatTanggal(String? isoDate) {
     if (isoDate == null) return '-';
     try {
-      return DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(isoDate));
+      return DateFormat(
+        'dd MMM yyyy, HH:mm',
+      ).format(DateTime.parse(isoDate).toLocal());
     } catch (_) {
       return isoDate;
     }
@@ -455,15 +462,15 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                   ),
                 ],
                 // Tombol lihat file soal
-                if (tugas['url_file_materi'] != null &&
-                    tugas['url_file_materi'].toString().isNotEmpty) ...[
+                if (tugas['url_file_tugas'] != null &&
+                    tugas['url_file_tugas'].toString().isNotEmpty) ...[
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       // SESUDAH
                       onPressed: () async {
-                        final url = Uri.parse(tugas['url_file_materi']);
+                        final url = Uri.parse(tugas['url_file_tugas']);
                         try {
                           final launched = await launchUrl(
                             url,
@@ -572,7 +579,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
             sudahKumpul
                 ? 'Kamu sudah mengumpulkan. Bisa diperbarui selama belum dinilai.'
                 : _deadlinePassed
-                ? 'Tenggat sudah lewat. Jawaban tetap bisa dikumpulkan namun ditandai terlambat.'
+                ? 'Tenggat sudah lewat.'
                 : 'Upload file jawaban kamu (PDF, Word, atau gambar)',
             style: const TextStyle(fontSize: 12, color: Color(0xFF9AA0B2)),
           ),

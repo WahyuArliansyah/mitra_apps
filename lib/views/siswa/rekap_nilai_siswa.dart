@@ -217,6 +217,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
                         _buildDropdownLabel('Mata Pelajaran'),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<Map<String, dynamic>>(
+                          isExpanded: true,
                           value: _selectedMapel,
                           hint: const Text('Pilih mata pelajaran'),
                           decoration: _dropdownDecoration(),

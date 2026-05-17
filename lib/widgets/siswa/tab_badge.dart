@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Badge angka merah kecil untuk ditampilkan di tab
 class TabBadge extends StatelessWidget {
   final int count;
 
@@ -12,11 +11,11 @@ class TabBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.redAccent,
+        color: const Color(0xFFE24B4A),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        '$count',
+        count > 99 ? '99+' : '$count',
         style: const TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,

@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SiswaService {
   final supabase = Supabase.instance.client;
 
-  // READ: Ambil semua data siswa
+  // Ambil semua data siswa
   Future<List<SiswaModel>> getSemuaSiswa() async {
     try {
       final response = await supabase
@@ -20,7 +20,7 @@ class SiswaService {
     }
   }
 
-  // READ: Ambil siswa berdasarkan kelas
+  // Ambil siswa berdasarkan kelas
   Future<List<SiswaModel>> getSiswaByKelas(String idKelas) async {
     try {
       final response = await supabase
@@ -72,6 +72,8 @@ class SiswaService {
                 'nim_nuptk': siswa.nis,
                 'kata_sandi': hashedPassword,
                 'peran': 'siswa',
+                // PERBAIKAN: Masukkan id_kelas ke tabel pengguna
+                if (siswa.idKelas != null) 'id_kelas': siswa.idKelas,
               })
               .eq('id', uidBaru);
           print('Update pengguna berhasil');
@@ -107,8 +109,16 @@ class SiswaService {
   // Update data siswa
   Future<bool> updateSiswa(String idSiswa, Map<String, dynamic> data) async {
     try {
-      // Update tabel siswa
+      // 1. Update tabel siswa
       await supabase.from('siswa').update(data).eq('id_siswa', idSiswa);
+
+      // PERBAIKAN: Siapkan penampung untuk update tabel pengguna agar sinkron
+      Map<String, dynamic> penggunaUpdate = {};
+
+      // Jika admin mengubah kelas siswa, siapkan untuk di-update di tabel pengguna juga
+      if (data.containsKey('id_kelas')) {
+        penggunaUpdate['id_kelas'] = data['id_kelas'];
+      }
 
       // Jika NIS berubah
       if (data.containsKey('nis')) {
@@ -120,17 +130,22 @@ class SiswaService {
           params: {'plain_password': nis},
         );
 
-        // Update tabel pengguna
-        await supabase
-            .from('pengguna')
-            .update({'nim_nuptk': nis, 'kata_sandi': hashedPassword})
-            .eq('id', idSiswa);
+        penggunaUpdate['nim_nuptk'] = nis;
+        penggunaUpdate['kata_sandi'] = hashedPassword;
 
         // Update email di auth.users via RPC
         await supabase.rpc(
           'update_auth_email',
           params: {'uid': idSiswa, 'new_email': '$nis@mitra.com'},
         );
+      }
+
+      // 2. Eksekusi update tabel pengguna (jika ada data id_kelas/NIS yang berubah)
+      if (penggunaUpdate.isNotEmpty) {
+        await supabase
+            .from('pengguna')
+            .update(penggunaUpdate)
+            .eq('id', idSiswa);
       }
 
       return true;

@@ -22,10 +22,11 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
   late final ReadStatusService _readService;
   late TabController _tabController;
 
-  static const _primary = Color(0xFF0EA5E9);
-  static const _bg = Color(0xFFF4F6FB);
+  static const _primary = Color(0xFF1A3FA8);
+  static const _bg = Color(0xFFF0F4FB);
 
   String _namaSiswa = '';
+  String _namaKelas = '';
   String _idKelas = '';
   bool _isLoading = true;
 
@@ -36,8 +37,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
   Set<String> _readTugasIds = {};
   Set<String> _readMateriIds = {};
 
-  // Getter untuk menghitung jumlah tugas dan materi yang belum dibaca
-
   int get _unreadTugasCount => _listTugas
       .where((t) => !_readTugasIds.contains(t['id'].toString()))
       .length;
@@ -46,7 +45,10 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       .where((m) => !_readMateriIds.contains(m['id'].toString()))
       .length;
 
-  // Fungsi untuk menandai tugas atau materi sebagai sudah dibaca
+  int get _belumKumpulCount => _listTugas.where((t) {
+    final status = _statusPengumpulan[t['id'].toString()];
+    return status == null;
+  }).length;
 
   @override
   void initState() {
@@ -65,19 +67,15 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     super.dispose();
   }
 
-  // Mengambil data tugas, materi, dan status baca dari Supabase
-
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load status baca
       _readTugasIds = await _readService.getReadTugasIds();
       _readMateriIds = await _readService.getReadMateriIds();
 
-      // Ambil data siswa
       final siswaData = await _supabase
           .from('siswa')
-          .select('nama_siswa, id_kelas')
+          .select('nama_siswa, id_kelas, kelas(nama_kelas)')
           .eq('id_siswa', widget.idSiswa)
           .maybeSingle();
 
@@ -88,8 +86,8 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
       _namaSiswa = siswaData['nama_siswa'] ?? 'Siswa';
       _idKelas = siswaData['id_kelas']?.toString() ?? '';
+      _namaKelas = siswaData['kelas']?['nama_kelas'] ?? '';
 
-      // Ambil tugas
       final tugasData = await _supabase
           .from('tugas')
           .select('*, kelas(nama_kelas), mata_pelajaran(nama_mapel)')
@@ -100,7 +98,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
       final listTugas = List<Map<String, dynamic>>.from(tugasData);
 
-      // Ambil status pengumpulan
       final idTugasList = listTugas.map((t) => t['id']).toList();
       final Map<String, Map<String, dynamic>?> statusMap = {};
 
@@ -119,7 +116,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
         statusMap.putIfAbsent(t['id'].toString(), () => null);
       }
 
-      // Ambil materi
       final materiData = await _supabase
           .from('materi')
           .select('*, kelas(nama_kelas), mata_pelajaran(nama_mapel)')
@@ -138,8 +134,6 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  // Tugas dan Materi Tap Handler
 
   Future<void> _onTugasTap(Map<String, dynamic> tugas) async {
     await _readService.markTugasAsRead(tugas['id'].toString(), _readTugasIds);
@@ -162,34 +156,46 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
     if (mounted) setState(() {});
   }
 
-  // Build UI
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: SiswaAppBar(namaSiswa: _namaSiswa),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
-          : Column(
+          : Stack(
               children: [
-                _buildTabBar(),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      RefreshIndicator(
-                        onRefresh: _loadData,
-                        color: _primary,
-                        child: _buildListTugas(),
+                Column(
+                  children: [
+                    SiswaAppBar(namaSiswa: _namaSiswa, namaKelas: _namaKelas),
+                    // Tab bar
+                    Transform.translate(
+                      offset: const Offset(0, -20),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        child: _buildTabBar(),
                       ),
-                      RefreshIndicator(
-                        onRefresh: _loadData,
-                        color: _primary,
-                        child: _buildListMateri(),
+                    ),
+                    Expanded(
+                      child: Transform.translate(
+                        offset: const Offset(0, -20),
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            RefreshIndicator(
+                              onRefresh: _loadData,
+                              color: _primary,
+                              child: _buildListTugas(),
+                            ),
+                            RefreshIndicator(
+                              onRefresh: _loadData,
+                              color: _primary,
+                              child: _buildListMateri(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -198,20 +204,39 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
 
   Widget _buildTabBar() {
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(4),
       child: TabBar(
         controller: _tabController,
-        labelColor: _primary,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: _primary,
-        indicatorWeight: 3,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        indicator: BoxDecoration(
+          color: _primary,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: Colors.white,
+        unselectedLabelColor: const Color(0xFF6B7280),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 13,
+        ),
+        dividerColor: Colors.transparent,
         tabs: [
           Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.assignment_rounded, size: 18),
+                const Icon(Icons.assignment_rounded, size: 16),
                 const SizedBox(width: 6),
                 Text('Tugas (${_listTugas.length})'),
                 if (_unreadTugasCount > 0) ...[
@@ -225,7 +250,7 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.menu_book_rounded, size: 18),
+                const Icon(Icons.menu_book_rounded, size: 16),
                 const SizedBox(width: 6),
                 Text('Materi (${_listMateri.length})'),
                 if (_unreadMateriCount > 0) ...[
@@ -249,7 +274,7 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 32),
       itemCount: _listTugas.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) {
@@ -273,7 +298,7 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 32),
       itemCount: _listMateri.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) {
@@ -296,20 +321,35 @@ class _SiswaDashboardViewState extends State<SiswaDashboardView>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 70, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 36, color: const Color(0xFFD1D5DB)),
+          ),
+          const SizedBox(height: 16),
           Text(
             pesan,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade400,
+              color: Color(0xFF9CA3AF),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             sub,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            style: const TextStyle(fontSize: 13, color: Color(0xFFD1D5DB)),
           ),
         ],
       ),
