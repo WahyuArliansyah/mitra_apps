@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SiswaAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String namaSiswa;
   final String namaKelas;
+  final bool compact;
   final List<Widget>? extraActions;
 
   static const _navyDark = Color(0xFF1A3FA8);
@@ -15,6 +16,7 @@ class SiswaAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.namaSiswa,
     this.namaKelas = '',
+    this.compact = false,
     this.extraActions,
   });
 

@@ -19,6 +19,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
   // Data siswa
   String _idKelas = '';
   String _namaSiswa = '';
+  String _namaKelas = '';
   bool _isLoadingSiswa = true;
 
   // Dropdown mapel
@@ -47,7 +48,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
       // Ambil data siswa
       final siswaData = await supabase
           .from('siswa')
-          .select('nama_siswa, id_kelas')
+          .select('nama_siswa, id_kelas, kelas(nama_kelas)')
           .eq('id_siswa', widget.idSiswa)
           .maybeSingle();
 
@@ -58,6 +59,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
 
       _namaSiswa = siswaData['nama_siswa'] ?? '';
       _idKelas = siswaData['id_kelas']?.toString() ?? '';
+      _namaKelas = siswaData['kelas']?['nama_kelas'] ?? '';
 
       // Ambil daftar mapel yang ada nilainya untuk siswa ini
       final mapelData = await supabase
@@ -178,157 +180,169 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      appBar: SiswaAppBar(namaSiswa: _namaSiswa),
       body: _isLoadingSiswa
           ? const Center(child: CircularProgressIndicator(color: _primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Filter card nilai
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
+          : Column(
+              children: [
+                SiswaAppBar(
+                  namaSiswa: _namaSiswa,
+                  namaKelas: _namaKelas,
+                  compact: true,
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Filter Nilai',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1F36),
+                        // Filter card nilai
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Filter Nilai',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1A1F36),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Dropdown Mata Pelajaran
+                              _buildDropdownLabel('Mata Pelajaran'),
+                              const SizedBox(height: 6),
+                              DropdownButtonFormField<Map<String, dynamic>>(
+                                isExpanded: true,
+                                value: _selectedMapel,
+                                hint: const Text('Pilih mata pelajaran'),
+                                decoration: _dropdownDecoration(),
+                                items: _listMapel.map((mapel) {
+                                  return DropdownMenuItem(
+                                    value: mapel,
+                                    child: Text(mapel['nama_mapel'] ?? '-'),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedMapel = val;
+                                    _listNilai = [];
+                                    _hasilHitung = null;
+                                  });
+                                  _loadNilaiIfReady();
+                                },
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Semester & Tahun Ajaran dalam 1 baris
+                              Row(
+                                children: [
+                                  // Dropdown Semester
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildDropdownLabel('Semester'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          value: _selectedSemester,
+                                          hint: const Text('Semester'),
+                                          decoration: _dropdownDecoration(),
+                                          items: _semesterOptions.map((s) {
+                                            return DropdownMenuItem(
+                                              value: s,
+                                              child: Text('Semester $s'),
+                                            );
+                                          }).toList(),
+                                          onChanged: (val) {
+                                            setState(() {
+                                              _selectedSemester = val;
+                                              _listNilai = [];
+                                              _hasilHitung = null;
+                                            });
+                                            _loadNilaiIfReady();
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // Dropdown Tahun Ajaran
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildDropdownLabel('Tahun Ajaran'),
+                                        const SizedBox(height: 6),
+                                        DropdownButtonFormField<String>(
+                                          value: _selectedTahunAjaran,
+                                          hint: const Text('Tahun'),
+                                          decoration: _dropdownDecoration(),
+                                          items: _tahunAjaranOptions.map((ta) {
+                                            return DropdownMenuItem(
+                                              value: ta,
+                                              child: Text(ta),
+                                            );
+                                          }).toList(),
+                                          onChanged: (val) {
+                                            setState(() {
+                                              _selectedTahunAjaran = val;
+                                              _listNilai = [];
+                                              _hasilHitung = null;
+                                            });
+                                            _loadNilaiIfReady();
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
 
-                        // Dropdown Mata Pelajaran
-                        _buildDropdownLabel('Mata Pelajaran'),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<Map<String, dynamic>>(
-                          isExpanded: true,
-                          value: _selectedMapel,
-                          hint: const Text('Pilih mata pelajaran'),
-                          decoration: _dropdownDecoration(),
-                          items: _listMapel.map((mapel) {
-                            return DropdownMenuItem(
-                              value: mapel,
-                              child: Text(mapel['nama_mapel'] ?? '-'),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedMapel = val;
-                              _listNilai = [];
-                              _hasilHitung = null;
-                            });
-                            _loadNilaiIfReady();
-                          },
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Semester & Tahun Ajaran dalam 1 baris
-                        Row(
-                          children: [
-                            // Dropdown Semester
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildDropdownLabel('Semester'),
-                                  const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
-                                    value: _selectedSemester,
-                                    hint: const Text('Semester'),
-                                    decoration: _dropdownDecoration(),
-                                    items: _semesterOptions.map((s) {
-                                      return DropdownMenuItem(
-                                        value: s,
-                                        child: Text('Semester $s'),
-                                      );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _selectedSemester = val;
-                                        _listNilai = [];
-                                        _hasilHitung = null;
-                                      });
-                                      _loadNilaiIfReady();
-                                    },
-                                  ),
-                                ],
-                              ),
+                        // Tabel nilai & rekap perhitungan
+                        if (_isLoadingNilai)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: CircularProgressIndicator(color: _primary),
                             ),
-                            const SizedBox(width: 12),
-
-                            // Dropdown Tahun Ajaran
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildDropdownLabel('Tahun Ajaran'),
-                                  const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
-                                    value: _selectedTahunAjaran,
-                                    hint: const Text('Tahun'),
-                                    decoration: _dropdownDecoration(),
-                                    items: _tahunAjaranOptions.map((ta) {
-                                      return DropdownMenuItem(
-                                        value: ta,
-                                        child: Text(ta),
-                                      );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _selectedTahunAjaran = val;
-                                        _listNilai = [];
-                                        _hasilHitung = null;
-                                      });
-                                      _loadNilaiIfReady();
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                          )
+                        else if (_selectedMapel == null ||
+                            _selectedSemester == null ||
+                            _selectedTahunAjaran == null)
+                          _buildPlaceholder()
+                        else if (_listNilai.isEmpty)
+                          _buildKosong()
+                        else ...[
+                          _buildTabelNilai(),
+                          const SizedBox(height: 16),
+                          _buildKartuRekap(),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Tabel nilai & rekap perhitungan
-                  if (_isLoadingNilai)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(color: _primary),
-                      ),
-                    )
-                  else if (_selectedMapel == null ||
-                      _selectedSemester == null ||
-                      _selectedTahunAjaran == null)
-                    _buildPlaceholder()
-                  else if (_listNilai.isEmpty)
-                    _buildKosong()
-                  else ...[
-                    _buildTabelNilai(),
-                    const SizedBox(height: 16),
-                    _buildKartuRekap(),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
     );
   }
