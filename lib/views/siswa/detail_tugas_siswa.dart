@@ -136,7 +136,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
             .getPublicUrl(fileName);
       }
 
-      final now = DateTime.now().toIso8601String();
+      final now = DateTime.now().toUtc().toIso8601String();
 
       if (_pengumpulan == null) {
         // INSERT — status: 'menunggu' atau 'terlambat'

@@ -4,18 +4,13 @@ import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruAppBar extends StatelessWidget {
-  final String namaGuru; //[cite: 4]
-  final List<Widget>? extraActions; //[cite: 4]
+  final String namaGuru;
+  final List<Widget>? extraActions;
 
-  static const _primary = Color(0xFF0EA5E9); //[cite: 4]
+  static const _primary = Color(0xFF0EA5E9);
 
-  const GuruAppBar({
-    super.key,
-    required this.namaGuru,
-    this.extraActions,
-  }); //[cite: 4]
+  const GuruAppBar({super.key, required this.namaGuru, this.extraActions});
 
-  // Fungsi cerdas untuk mengambil inisial nama secara otomatis
   String _getInitials(String name) {
     if (name.isEmpty) return "G";
     List<String> words = name.trim().split(RegExp(r'\s+'));
@@ -26,41 +21,41 @@ class GuruAppBar extends StatelessWidget {
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return 'Selamat Pagi 🌤️';
+    if (hour < 15) return 'Selamat Siang ☀️';
+    if (hour < 18) return 'Selamat Sore 🌇';
+    return 'Selamat Malam 🌙';
+  }
+
   Future<void> _logout(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        //[cite: 4]
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Logout'), //[cite: 4]
-        content: const Text('Yakin ingin keluar dari akun ini?'), //[cite: 4]
+        title: const Text('Konfirmasi Logout'),
+        content: const Text('Yakin ingin keluar dari akun ini?'),
         actions: [
           TextButton(
-            //[cite: 4]
-            onPressed: () => Navigator.pop(ctx, false), //[cite: 4]
-            child: const Text('Batal'), //[cite: 4]
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
           ),
           ElevatedButton(
-            //[cite: 4]
-            onPressed: () => Navigator.pop(ctx, true), //[cite: 4]
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              //[cite: 4]
-              backgroundColor: Colors.redAccent, //[cite: 4]
+              backgroundColor: Colors.redAccent,
               shape: RoundedRectangleBorder(
-                //[cite: 4]
-                borderRadius: BorderRadius.circular(8), //[cite: 4]
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              'Logout',
-              style: TextStyle(color: Colors.white),
-            ), //[cite: 4]
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+
     if (ok == true && context.mounted) {
-      // Hapus FCM token sebelum logout
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
         await Supabase.instance.client
@@ -68,7 +63,6 @@ class GuruAppBar extends StatelessWidget {
             .update({'fcm_token': null})
             .eq('id', user.id);
       }
-
       await Supabase.instance.client.auth.signOut();
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(
@@ -83,36 +77,30 @@ class GuruAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      //[cite: 4]
       expandedHeight: 110,
       floating: false,
       pinned: true,
       backgroundColor: _primary,
       automaticallyImplyLeading: false,
-      elevation: 0, //[cite: 4]
+      elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
-        //[cite: 4]
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              //[cite: 4]
               colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
           child: SafeArea(
-            //[cite: 4]
             child: Padding(
-              //[cite: 4]
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20), //[cite: 4]
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.end, //[cite: 4]
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Row(
-                    //[cite: 4]
                     children: [
-                      // 1. Logo Aplikasi Bulat di Kiri
+                      // Logo aplikasi (kiri)
                       Container(
                         width: 44,
                         height: 44,
@@ -135,40 +123,38 @@ class GuruAppBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
+
+                      // Greeting + nama guru
                       Expanded(
-                        //[cite: 4]
                         child: Column(
-                          //[cite: 4]
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start, //[cite: 4]
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Hello,',
-                              style: TextStyle(
-                                color: Colors.white70, //[cite: 4]
-                                fontSize: 12, //[cite: 4]
+                            Text(
+                              _getGreeting(),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
                               ),
                             ),
                             Text(
-                              namaGuru, //[cite: 4]
+                              namaGuru,
                               style: const TextStyle(
-                                //[cite: 4]
-                                color: Colors.white, //[cite: 4]
-                                fontSize: 16, //[cite: 4]
-                                fontWeight: FontWeight.bold, //[cite: 4]
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
-                              overflow: TextOverflow.ellipsis, //[cite: 4]
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
 
-                      // Extra actions (opsional) bawaan dari code sebelumnya
-                      if (extraActions != null) ...extraActions!, //[cite: 4]
-                      const SizedBox(width: 8), //[cite: 4]
-                      // 3. Popup Menu Button (Dropdown Inisial Nama) di Kanan
+                      // Extra actions (opsional)
+                      if (extraActions != null) ...extraActions!,
+                      const SizedBox(width: 8),
+
+                      // Avatar dengan dropdown menu (kanan)
                       Theme(
-                        // Menghilangkan efek ripple kotak bawaan saat diklik
                         data: Theme.of(context).copyWith(
                           splashColor: Colors.transparent,
                           highlightColor: Colors.transparent,
@@ -232,7 +218,6 @@ class GuruAppBar extends StatelessWidget {
                               ),
                             ),
                           ],
-                          // Widget yang terlihat (Badge Profil)
                           child: Container(
                             padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
