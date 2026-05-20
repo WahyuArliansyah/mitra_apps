@@ -4,7 +4,7 @@ class TugasCard extends StatelessWidget {
   final Map<String, dynamic> tugas;
   final VoidCallback onTap;
 
-  static const _primary = Color(0xFF0EA5E9);
+  static const _navy = Color(0xFF0F2D5C);
 
   const TugasCard({super.key, required this.tugas, required this.onTap});
 
@@ -52,7 +52,7 @@ class TugasCard extends StatelessWidget {
                     isPraktikum
                         ? Icons.science_rounded
                         : Icons.menu_book_rounded,
-                    color: isPraktikum ? const Color(0xFFD97706) : _primary,
+                    color: isPraktikum ? const Color(0xFFD97706) : _navy,
                     size: 22,
                   ),
                 ),
@@ -93,7 +93,7 @@ class TugasCard extends StatelessWidget {
                 // Badge type
                 _badge(
                   isPraktikum ? 'Praktikum' : 'Materi',
-                  isPraktikum ? const Color(0xFFD97706) : _primary,
+                  isPraktikum ? const Color(0xFFD97706) : _navy,
                   isPraktikum
                       ? const Color(0xFFFEF3E0)
                       : const Color(0xFFE0F2FE),

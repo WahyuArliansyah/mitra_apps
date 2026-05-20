@@ -14,7 +14,8 @@ class BuatTugasView extends StatefulWidget {
 
 class _BuatTugasViewState extends State<BuatTugasView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
+  // static const _primary = Color(0xFF0EA5E9);
+  static const _navy = Color(0xFF0F2D5C);
 
   final _judulCtrl = TextEditingController();
   final _deskripsiCtrl = TextEditingController();
@@ -254,7 +255,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
   InputDecoration _inputDeco(String label, IconData icon) => InputDecoration(
     labelText: label,
-    prefixIcon: Icon(icon, color: _primary),
+    prefixIcon: Icon(icon, color: _navy),
     filled: true,
     fillColor: Colors.grey.shade50,
     border: OutlineInputBorder(
@@ -267,7 +268,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _primary, width: 2),
+      borderSide: const BorderSide(color: _navy, width: 2),
     ),
   );
 
@@ -276,11 +277,12 @@ class _BuatTugasViewState extends State<BuatTugasView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
+        toolbarHeight: 70,
         title: const Text(
           'Buat Tugas',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -317,7 +319,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     label: 'Teori',
                     icon: Icons.menu_book_rounded,
                     isActive: _typeTugas == 'teori',
-                    color: _primary,
+                    color: _navy,
                     onTap: () => _onTypeTugasChanged('teori'),
                   ),
                 ),
@@ -529,9 +531,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _deadline != null
-                          ? _primary
-                          : Colors.grey.shade200,
+                      color: _deadline != null ? _navy : Colors.grey.shade200,
                       width: _deadline != null ? 2 : 1,
                     ),
                   ),
@@ -539,7 +539,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     children: [
                       Icon(
                         Icons.access_time_rounded,
-                        color: _deadline != null ? _primary : Colors.grey,
+                        color: _deadline != null ? _navy : Colors.grey,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -583,7 +583,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _fileTerpilih != null
-                          ? _primary
+                          ? _navy
                           : Colors.grey.shade200,
                       width: _fileTerpilih != null ? 2 : 1,
                     ),
@@ -594,7 +594,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                         _fileTerpilih != null
                             ? Icons.insert_drive_file_rounded
                             : Icons.attach_file_rounded,
-                        color: _fileTerpilih != null ? _primary : Colors.grey,
+                        color: _fileTerpilih != null ? _navy : Colors.grey,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -635,7 +635,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               child: ElevatedButton(
                 onPressed: _isLoading || _isUploading ? null : _simpan,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
+                  backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

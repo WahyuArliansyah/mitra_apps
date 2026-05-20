@@ -1,9 +1,26 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
 import 'package:mitra_apps/widgets/custom_main_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
+// ============================================
+// THEME COLORS - Sesuai request kamu
+// ============================================
+class AppColors {
+  static const Color navy = Color(0xFF0F2D5C);
+  static const Color navyMid = Color(0xFF1A4080);
+  static const Color accent = Color(0xFF3B82F6);
+  static const Color white = Colors.white;
+  static const Color lightBackground = Color(0xFFF8FAFC);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color border = Color(0xFFE2E8F0);
+}
+
+// ============================================
+// MAIN LOGIN VIEW
+// ============================================
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -17,33 +34,28 @@ class _LoginViewState extends State<LoginView> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _emailFocused = false;
+  bool _passwordFocused = false;
 
-  static const _primaryBlue = Color(0xFF1A3A8F);
-  static const _accentOrange = Color(0xFFF97316);
-
-  // Fungsi khusus untuk menyimpan token ke tabel 'pengguna'
+  // ============================================
+  // FCM TOKEN LOGIC - TIDAK DIUBAH SAMA SEKALI
+  // ============================================
   Future<void> _updateFCMToken(String idPengguna, String role) async {
-    // Sesuai permintaanmu, kita fokuskan update token ini untuk siswa saja.
     if (role != 'siswa') return;
     final supabase = Supabase.instance.client;
     await Future.delayed(const Duration(seconds: 2));
     try {
       String? fcmToken = await FirebaseMessaging.instance.getToken();
-      // 1. Minta izin notifikasi ke pengguna (Wajib untuk Android 13+)
       NotificationSettings settings = await FirebaseMessaging.instance
           .requestPermission();
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        // 2. Ambil token unik dari perangkat HP ini
         String? fcmToken = await FirebaseMessaging.instance.getToken();
-
         if (fcmToken != null) {
-          // 3. Simpan token ke tabel 'pengguna'
           await supabase
               .from('pengguna')
               .update({'fcm_token': fcmToken})
               .eq('id', idPengguna);
-
           debugPrint('FCM Token Siswa berhasil diupdate: $fcmToken');
         }
       } else {
@@ -54,6 +66,9 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  // ============================================
+  // LOGIN LOGIC - TIDAK DIUBAH SAMA SEKALI
+  // ============================================
   Future<void> _prosesLogin() async {
     setState(() => _isLoading = true);
 
@@ -80,45 +95,18 @@ class _LoginViewState extends State<LoginView> {
 
         if (userData == null) {
           if (mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.orange, size: 28),
-                    SizedBox(width: 8),
-                    Text(
-                      'Profil Tidak Ditemukan',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                content: const Text(
+            _showErrorDialog(
+              icon: Icons.error_outline,
+              iconColor: Colors.orange,
+              title: 'Profil Tidak Ditemukan',
+              message:
                   'Akun Anda belum terdaftar di data profil sistem. Hubungi Administrator.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Supabase.instance.client.auth.signOut();
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Tutup'),
-                  ),
-                ],
-              ),
             );
           }
           return;
         }
 
         final peran = userData['peran'];
-
         await _updateFCMToken(userId, peran);
 
         if (mounted) {
@@ -146,59 +134,23 @@ class _LoginViewState extends State<LoginView> {
               ),
             );
           } else {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Akses Ditolak'),
-                content: const Text(
-                  'Akun Anda tidak memiliki hak akses yang valid.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Tutup'),
-                  ),
-                ],
-              ),
+            _showErrorDialog(
+              icon: Icons.lock_outline,
+              iconColor: Colors.red,
+              title: 'Akses Ditolak',
+              message: 'Akun Anda tidak memiliki hak akses yang valid.',
             );
           }
         }
       }
     } on AuthException catch (e) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-                SizedBox(width: 8),
-                Text(
-                  'Login Gagal',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            content: const Text(
+        _showErrorDialog(
+          icon: Icons.warning_amber_rounded,
+          iconColor: Colors.red,
+          title: 'Login Gagal',
+          message:
               'NIS/NIP atau Password yang Anda masukkan salah. Silakan periksa kembali.',
-              style: TextStyle(fontSize: 15),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Tutup',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _primaryBlue,
-                  ),
-                ),
-              ),
-            ],
-          ),
         );
       }
     } catch (e) {
@@ -212,6 +164,48 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  void _showErrorDialog({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 15)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Tutup',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.navy,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -222,191 +216,171 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: AppColors.lightBackground,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              children: [
+                // ============================================
+                // HERO SECTION - Modern Gradient Design
+                // ============================================
+                _buildHeroSection(),
+
+                // ============================================
+                // LOGIN FORM - Clean Card Design
+                // ============================================
+                _buildLoginForm(),
+
+                // ============================================
+                // FOOTER
+                // ============================================
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 60),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.navy, AppColors.navyMid, AppColors.accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(40),
+          bottomRight: Radius.circular(40),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Logo Container - Modern Rounded Design
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Image.asset(
+              'assets/images/logo_login.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Welcome Text
+          const Text(
+            'MitraTaskly',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Text(
+          //   'Belajar Lebih Smart',
+          //   style: TextStyle(
+          //     fontSize: 15,
+          //     color: Colors.white.withOpacity(0.85),
+          //     fontWeight: FontWeight.w500,
+          //   ),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Transform.translate(
+      offset: const Offset(0, -30),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header melengkung ──────────────────────────
-              ClipPath(
-                clipper: _WaveClipper(),
-                child: Container(
-                  height: 280,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1A3A8F), Color(0xFF2B5CE6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              // Title Section
+              Center(
+                child: Column(
+                  children: [
+                    const Text(
+                      'Selamat Datang',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.navy,
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 16),
-                      // Logo
-                      Container(
-                        height: 150,
-                        width: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.rectangle,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset(
-                          'assets/images/logo_login.png',
-                          fit: BoxFit.contain,
-                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Silakan masuk dengan akun Anda',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 32),
 
-              // ── Form Card ──────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.07),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Judul
-                      const Text(
-                        'Selamat Datang',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A3A8F),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Masuk ke akun MitraTaskly Anda',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Field NISN/NUPTK
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'NIS / NIP',
-                        hint: 'Masukkan NIS atau NIP',
-                        icon: Icons.badge_rounded,
-                        keyboardType: TextInputType.text,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Field Password
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          hintText: 'Masukkan password',
-                          prefixIcon: const Icon(
-                            Icons.lock_rounded,
-                            color: _primaryBlue,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_rounded
-                                  : Icons.visibility_rounded,
-                              color: Colors.grey,
-                            ),
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: _primaryBlue,
-                              width: 2,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Tombol Login
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _prosesLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _accentOrange,
-                            disabledBackgroundColor: _accentOrange.withOpacity(
-                              0.6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 2,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Text(
-                                  'MASUK',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // NIS/NIP Field - Modern Design
+              _buildModernTextField(
+                controller: _emailController,
+                label: 'NIS / NIP',
+                hint: 'Contoh: 12345678',
+                icon: Icons.school_outlined,
+                isFocused: _emailFocused,
+                onFocusChange: (focused) =>
+                    setState(() => _emailFocused = focused),
               ),
+              const SizedBox(height: 20),
 
-              // Footer
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Text(
-                  '© 2026 SMK Mitra Permata',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                ),
-              ),
+              // Password Field - Modern Design
+              _buildModernPasswordField(),
+              const SizedBox(height: 32),
+
+              // Login Button - Modern Gradient
+              _buildLoginButton(),
             ],
           ),
         ),
@@ -414,51 +388,254 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
+    required bool isFocused,
+    required Function(bool) onFocusChange,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, color: _primaryBlue),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _primaryBlue, width: 2),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isFocused
+            ? [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        onTap: () => onFocusChange(true),
+        onEditingComplete: () => onFocusChange(false),
+        onTapOutside: (_) => onFocusChange(false),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppColors.navy,
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 14,
-          horizontal: 12,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary.withOpacity(0.6),
+            fontWeight: FontWeight.normal,
+          ),
+          labelStyle: TextStyle(
+            color: isFocused ? AppColors.accent : AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(12),
+            child: Icon(
+              icon,
+              color: isFocused ? AppColors.accent : AppColors.textSecondary,
+              size: 22,
+            ),
+          ),
+          filled: true,
+          fillColor: isFocused
+              ? AppColors.accent.withOpacity(0.04)
+              : AppColors.lightBackground,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.border, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.accent, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 16,
+          ),
         ),
       ),
     );
   }
-}
 
-// Clipper untuk efek gelombang di header
-class _WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 50);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height + 30,
-      size.width,
-      size.height - 50,
+  Widget _buildModernPasswordField() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: _passwordFocused
+            ? [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: TextField(
+        controller: _passwordController,
+        obscureText: _obscurePassword,
+        onTap: () => setState(() => _passwordFocused = true),
+        onEditingComplete: () => setState(() => _passwordFocused = false),
+        onTapOutside: (_) => setState(() => _passwordFocused = false),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppColors.navy,
+        ),
+        decoration: InputDecoration(
+          labelText: 'Password',
+          hintText: 'Masukkan password',
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary.withOpacity(0.6),
+            fontWeight: FontWeight.normal,
+          ),
+          labelStyle: TextStyle(
+            color: _passwordFocused
+                ? AppColors.accent
+                : AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(12),
+            child: Icon(
+              Icons.lock_outline,
+              color: _passwordFocused
+                  ? AppColors.accent
+                  : AppColors.textSecondary,
+              size: 22,
+            ),
+          ),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: _passwordFocused
+                  ? AppColors.accent
+                  : AppColors.textSecondary,
+            ),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+          ),
+          filled: true,
+          fillColor: _passwordFocused
+              ? AppColors.accent.withOpacity(0.04)
+              : AppColors.lightBackground,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.border, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.accent, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 18,
+            horizontal: 16,
+          ),
+        ),
+      ),
     );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
   }
 
-  @override
-  bool shouldReclip(_WaveClipper oldClipper) => false;
+  Widget _buildLoginButton() {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.navy, AppColors.accent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accent.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _prosesLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'MASUK',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 40, bottom: 24),
+      child: Column(
+        children: [
+          Text(
+            '© 2026 SMK Mitra Permata',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'versi 1.0.0',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

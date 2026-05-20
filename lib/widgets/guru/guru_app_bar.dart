@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mitra_apps/views/guru/ubah_password_view.dart';
 import 'package:mitra_apps/views/login_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,26 +8,26 @@ class GuruAppBar extends StatelessWidget {
   final String namaGuru;
   final List<Widget>? extraActions;
 
-  static const _primary = Color(0xFF0EA5E9);
+  // ─── Design Tokens (sama persis dengan GuruDashboardView) ─────────────────
+  static const _navy = Color(0xFF0F2D5C);
+  static const _navyMid = Color(0xFF1A4080);
+  static const _accent = Color(0xFF3B82F6);
+  static const _white = Colors.white;
 
   const GuruAppBar({super.key, required this.namaGuru, this.extraActions});
 
   String _getInitials(String name) {
-    if (name.isEmpty) return "G";
-    List<String> words = name.trim().split(RegExp(r'\s+'));
-    if (words.length == 1) {
-      return words[0][0].toUpperCase();
-    } else {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 11) return 'Selamat Pagi 🌤️';
-    if (hour < 15) return 'Selamat Siang ☀️';
-    if (hour < 18) return 'Selamat Sore 🌇';
-    return 'Selamat Malam 🌙';
+    if (hour < 11) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -77,175 +78,261 @@ class GuruAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 110,
-      floating: false,
+      expandedHeight: 200,
       pinned: true,
-      backgroundColor: _primary,
-      automaticallyImplyLeading: false,
+      backgroundColor: _navy,
       elevation: 0,
+      automaticallyImplyLeading: false,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
+        background: _buildHeaderBackground(context),
+        collapseMode: CollapseMode.pin,
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(0),
+        child: Container(
+          height: 24,
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            color: Color(0xFFF0F4FA),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderBackground(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_navy, _navyMid, Color(0xFF2563EB)],
+          stops: [0.0, 0.5, 1.0],
+        ),
+      ),
+      child: Stack(
+        children: [
+          // ── Decorative circles ──────────────────────────────────────────
+          Positioned(
+            top: -30,
+            right: -20,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _white.withOpacity(0.05),
+              ),
             ),
           ),
-          child: SafeArea(
+          Positioned(
+            top: 40,
+            right: 60,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _white.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 30,
+            left: -30,
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _white.withOpacity(0.04),
+              ),
+            ),
+          ),
+
+          // ── Content ─────────────────────────────────────────────────────
+          SafeArea(
+            bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      // Logo aplikasi (kiri)
-                      Container(
-                        width: 44,
-                        height: 44,
+                  // Avatar
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
+                      ),
+                      border: Border.all(
+                        color: _white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _navy.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        _getInitials(namaGuru),
+                        style: const TextStyle(
+                          color: _white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Greeting + nama + role badge
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: TextStyle(
+                            color: _white.withOpacity(0.7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          namaGuru,
+                          style: const TextStyle(
+                            color: _white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: _white.withOpacity(0.2)),
+                          ),
+                          child: const Text(
+                            'Guru',
+                            style: TextStyle(
+                              color: _white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Extra actions (opsional)
+                  if (extraActions != null) ...extraActions!,
+
+                  // Popup menu (ubah password & logout) dikemas dalam bell-style button
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: PopupMenuButton<String>(
+                      offset: const Offset(0, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      color: Colors.white,
+                      tooltip: 'Profil & Pengaturan',
+                      onSelected: (value) {
+                        if (value == 'ubah_password') {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const UbahPasswordView(),
+                          );
+                        } else if (value == 'logout') {
+                          _logout(context);
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem<String>(
+                          value: 'ubah_password',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.vpn_key_outlined,
+                                color: _accent,
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Ubah Kata Sandi',
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem<String>(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.logout_rounded,
+                                color: Colors.redAccent,
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Logout',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      // Tombol berbentuk kotak mirip notification bell di dashboard
+                      child: Container(
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: Colors.white, width: 2),
+                          color: _white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _white.withOpacity(0.2)),
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/logo_login.png',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.school,
-                                  color: _primary,
-                                  size: 24,
-                                ),
-                          ),
+                        child: const Icon(
+                          Icons.more_vert_rounded,
+                          color: _white,
+                          size: 22,
                         ),
                       ),
-                      const SizedBox(width: 12),
-
-                      // Greeting + nama guru
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getGreeting(),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              namaGuru,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Extra actions (opsional)
-                      if (extraActions != null) ...extraActions!,
-                      const SizedBox(width: 8),
-
-                      // Avatar dengan dropdown menu (kanan)
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                        ),
-                        child: PopupMenuButton<String>(
-                          offset: const Offset(0, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          color: Colors.white,
-                          tooltip: 'Profil & Pengaturan',
-                          onSelected: (String value) {
-                            if (value == 'ubah_password') {
-                              showDialog(
-                                context: context,
-                                builder: (context) => const UbahPasswordView(),
-                              );
-                            } else if (value == 'logout') {
-                              _logout(context);
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => [
-                            const PopupMenuItem<String>(
-                              value: 'ubah_password',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.vpn_key_outlined,
-                                    color: _primary,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Ubah Kata Sandi',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem<String>(
-                              value: 'logout',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.logout_rounded,
-                                    color: Colors.redAccent,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Logout',
-                                    style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.white,
-                              child: Text(
-                                _getInitials(namaGuru),
-                                style: const TextStyle(
-                                  color: _primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

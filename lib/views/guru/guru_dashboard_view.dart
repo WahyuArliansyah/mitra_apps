@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mitra_apps/views/guru/materi/buat_materi_view.dart';
 import 'package:mitra_apps/views/guru/tugas/buat_tugas_view.dart';
 import 'package:mitra_apps/views/guru/tugas/detail_tugas_view.dart';
@@ -25,11 +24,10 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     with SingleTickerProviderStateMixin {
   final supabase = Supabase.instance.client;
 
-  // ─── Design Tokens ─────────────────────────────────────────────────────────
+  // Skema warna utama untuk konsistensi desain
   static const _accent = Color(0xFF3B82F6);
   static const _accentSoft = Color(0xFFEFF6FF);
   static const _bg = Color(0xFFF0F4FA);
-  static const _white = Colors.white;
   static const _textDark = Color(0xFF0F172A);
   static const _textMuted = Color(0xFF64748B);
 
@@ -90,84 +88,91 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     return _listTugas.where((t) => t['type_tugas'] == _filterType).toList();
   }
 
-  // ─── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: _bg,
-        body: RefreshIndicator(
-          onRefresh: _ambilTugas,
-          color: _accent,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ← Pakai GuruAppBar langsung, tidak perlu build header sendiri
-              GuruAppBar(namaGuru: widget.namaGuru),
-              SliverToBoxAdapter(child: _buildStatsSection()),
-              SliverToBoxAdapter(child: _buildSectionHeader()),
-              SliverToBoxAdapter(child: _buildFilterChips()),
-              _buildTugasList(),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: _bg,
+      body: RefreshIndicator(
+        onRefresh: _ambilTugas,
+        color: _accent,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // AppBar dengan nama guru dan greeting
+            GuruAppBar(namaGuru: widget.namaGuru),
+
+            // Statistik tugas total, teori, dan praktikum
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: _buildStatsRow(),
+              ),
+            ),
+
+            // Header untuk daftar tugas
+            SliverToBoxAdapter(child: _buildSectionHeader()),
+
+            // Filter chips untuk jenis tugas
+            SliverToBoxAdapter(child: _buildFilterChips()),
+
+            // Memunculkan daftar tugas berdasarkan filter yang dipilih
+            _buildTugasList(),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
         ),
-        floatingActionButton: _buildFAB(),
       ),
+      floatingActionButton: _buildFAB(),
     );
   }
 
-  // ─── Stats Section ──────────────────────────────────────────────────────────
-  Widget _buildStatsSection() {
+  // Statistik jumlah tugas total, teori, dan praktikum
+  Widget _buildStatsRow() {
     final total = _listTugas.length;
     final teori = _listTugas.where((t) => t['type_tugas'] == 'teori').length;
     final praktikum = _listTugas
         .where((t) => t['type_tugas'] == 'praktikum')
         .length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatCard(
-              label: 'Total Tugas',
-              value: total,
-              icon: Icons.assignment_rounded,
-              iconColor: _accent,
-              iconBg: _accentSoft,
-              valueColor: _accent,
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            label: 'Total Tugas',
+            value: total,
+            icon: Icons.assignment_rounded,
+            iconColor: _accent,
+            iconBg: _accentSoft,
+            valueColor: _accent,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Teori',
-              value: teori,
-              icon: Icons.menu_book_rounded,
-              iconColor: const Color(0xFF059669),
-              iconBg: const Color(0xFFECFDF5),
-              valueColor: const Color(0xFF059669),
-            ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            label: 'Teori',
+            value: teori,
+            icon: Icons.menu_book_rounded,
+            iconColor: const Color(0xFF059669),
+            iconBg: const Color(0xFFECFDF5),
+            valueColor: const Color(0xFF059669),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatCard(
-              label: 'Praktikum',
-              value: praktikum,
-              icon: Icons.science_rounded,
-              iconColor: const Color(0xFFD97706),
-              iconBg: const Color(0xFFFFFBEB),
-              valueColor: const Color(0xFFD97706),
-            ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            label: 'Praktikum',
+            value: praktikum,
+            icon: Icons.science_rounded,
+            iconColor: const Color(0xFFD97706),
+            iconBg: const Color(0xFFFFFBEB),
+            valueColor: const Color(0xFFD97706),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // ─── Section Header ─────────────────────────────────────────────────────────
+  // ─── Section Header ────────────────────────────────────────────────────────
   Widget _buildSectionHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -203,7 +208,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     );
   }
 
-  // ─── Filter Chips ───────────────────────────────────────────────────────────
+  // ─── Filter Chips ──────────────────────────────────────────────────────────
   Widget _buildFilterChips() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -240,7 +245,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     );
   }
 
-  // ─── Tugas List ─────────────────────────────────────────────────────────────
+  // ─── Tugas List ────────────────────────────────────────────────────────────
   Widget _buildTugasList() {
     if (_isLoading) {
       return const SliverFillRemaining(
@@ -313,7 +318,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     );
   }
 
-  // ─── FAB ────────────────────────────────────────────────────────────────────
+  // ─── FAB ───────────────────────────────────────────────────────────────────
   Widget _buildFAB() {
     return Container(
       decoration: BoxDecoration(
@@ -335,11 +340,11 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
         onPressed: () => _showAddOptions(context),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        icon: const Icon(Icons.add_rounded, color: _white, size: 22),
+        icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
         label: const Text(
           'Tambah',
           style: TextStyle(
-            color: _white,
+            color: Colors.white,
             fontWeight: FontWeight.w700,
             fontSize: 15,
           ),
@@ -348,7 +353,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     );
   }
 
-  // ─── Bottom Sheet ────────────────────────────────────────────────────────────
+  // ─── Bottom Sheet ──────────────────────────────────────────────────────────
   void _showAddOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -356,7 +361,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
       isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: const BoxDecoration(
-          color: _white,
+          color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -430,7 +435,7 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
   }
 }
 
-// ─── Reusable Widgets ───────────────────────────────────────────────────────────
+// ─── Reusable Widgets ──────────────────────────────────────────────────────────
 
 class _StatCard extends StatelessWidget {
   final String label;

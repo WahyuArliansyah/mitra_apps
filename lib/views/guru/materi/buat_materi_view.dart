@@ -14,7 +14,7 @@ class BuatMateriView extends StatefulWidget {
 
 class _BuatMateriViewState extends State<BuatMateriView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
+  static const _navy = Color(0xFF0F2D5C);
 
   final _judulCtrl = TextEditingController();
   final _deskripsiCtrl = TextEditingController();
@@ -222,7 +222,7 @@ class _BuatMateriViewState extends State<BuatMateriView> {
 
   InputDecoration _inputDeco(String label, IconData icon) => InputDecoration(
     labelText: label,
-    prefixIcon: Icon(icon, color: _primary),
+    prefixIcon: Icon(icon, color: _navy),
     filled: true,
     fillColor: Colors.grey.shade50,
     border: OutlineInputBorder(
@@ -235,7 +235,7 @@ class _BuatMateriViewState extends State<BuatMateriView> {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _primary, width: 2),
+      borderSide: const BorderSide(color: _navy, width: 2),
     ),
   );
 
@@ -244,11 +244,12 @@ class _BuatMateriViewState extends State<BuatMateriView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
+        toolbarHeight: 70,
         title: const Text(
           'Upload Materi',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -364,9 +365,7 @@ class _BuatMateriViewState extends State<BuatMateriView> {
                   color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _fileTerpilih != null
-                        ? _primary
-                        : Colors.grey.shade200,
+                    color: _fileTerpilih != null ? _navy : Colors.grey.shade200,
                     width: _fileTerpilih != null ? 2 : 1,
                   ),
                 ),
@@ -376,7 +375,7 @@ class _BuatMateriViewState extends State<BuatMateriView> {
                       _fileTerpilih != null
                           ? Icons.insert_drive_file_rounded
                           : Icons.cloud_upload_rounded,
-                      color: _fileTerpilih != null ? _primary : Colors.grey,
+                      color: _fileTerpilih != null ? _navy : Colors.grey,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -413,7 +412,7 @@ class _BuatMateriViewState extends State<BuatMateriView> {
               child: ElevatedButton(
                 onPressed: _isLoading || _isUploading ? null : _simpan,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
+                  backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
