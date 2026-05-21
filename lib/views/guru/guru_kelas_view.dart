@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mitra_apps/views/guru/tugas/detail_kelas_view.dart';
+import 'package:mitra_apps/widgets/guru/guru_app_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruKelasView extends StatefulWidget {
   final String idGuru;
+  final String namaGuru;
 
-  const GuruKelasView({super.key, required this.idGuru});
+  const GuruKelasView({
+    super.key,
+    required this.idGuru,
+    required this.namaGuru,
+  });
 
   @override
   State<GuruKelasView> createState() => _GuruKelasViewState();
@@ -13,6 +20,7 @@ class GuruKelasView extends StatefulWidget {
 
 class _GuruKelasViewState extends State<GuruKelasView> {
   final supabase = Supabase.instance.client;
+
   static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
 
@@ -72,126 +80,138 @@ class _GuruKelasViewState extends State<GuruKelasView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        title: const Text(
-          'Kelas yang Diajar',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: _primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _ambilData,
-        color: _primary,
-        child: Column(
-          children: [
-            // Filter bar
-            Container(
-              color: _primary,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _filterTahun,
-                      dropdownColor: Colors.white,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13,
-                      ),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.9),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      items: _tahunList
-                          .map(
-                            (t) => DropdownMenuItem(value: t, child: Text(t)),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _filterTahun = v!),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _filterSemester,
-                      dropdownColor: Colors.white,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13,
-                      ),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.9),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      items: ['Semua', '1', '2']
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(
-                                s == 'Semua' ? 'Semua Semester' : 'Semester $s',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _filterSemester = v!),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _bg,
+        body: RefreshIndicator(
+          onRefresh: _ambilData,
+          color: _primary,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // ── AppBar widget ────────────────────────────────────────────
+              GuruAppBar(namaGuru: widget.namaGuru),
 
-            // List kelas
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: _primary),
-                    )
-                  : _filtered.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.class_outlined,
-                            size: 60,
-                            color: Colors.grey.shade300,
+              // ── Filter bar ───────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Container(
+                  color: _bg,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _filterTahun,
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Belum ada kelas yang diajar',
-                            style: TextStyle(color: Colors.grey.shade400),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.9),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
-                        ],
+                          items: _tahunList
+                              .map(
+                                (t) =>
+                                    DropdownMenuItem(value: t, child: Text(t)),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _filterTahun = v!),
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filtered.length,
-                      itemBuilder: (ctx, i) => _buildKelasCard(_filtered[i]),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _filterSemester,
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.9),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          items: ['Semua', '1', '2']
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    s == 'Semua'
+                                        ? 'Semua Semester'
+                                        : 'Semester $s',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _filterSemester = v!),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── List kelas ───────────────────────────────────────────────
+              if (_isLoading)
+                const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: _primary),
+                  ),
+                )
+              else if (_filtered.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.class_outlined,
+                          size: 60,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada kelas yang diajar',
+                          style: TextStyle(color: Colors.grey.shade400),
+                        ),
+                      ],
                     ),
-            ),
-          ],
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (ctx, i) => _buildKelasCard(_filtered[i]),
+                      childCount: _filtered.length,
+                    ),
+                  ),
+                ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            ],
+          ),
         ),
       ),
     );

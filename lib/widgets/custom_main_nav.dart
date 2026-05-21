@@ -89,9 +89,9 @@ class _CustomMainNavState extends State<CustomMainNav> {
         case 0:
           return GuruDashboardView(idGuru: _idProfile, namaGuru: _namaProfile);
         case 1:
-          return GuruKelasView(idGuru: _idProfile);
+          return GuruKelasView(idGuru: _idProfile, namaGuru: _namaProfile);
         case 2:
-          return GuruRekapNilaiView(idGuru: _idProfile);
+          return GuruRekapNilaiView(idGuru: _idProfile, namaGuru: _namaProfile);
         default:
           return GuruDashboardView(idGuru: _idProfile, namaGuru: _namaProfile);
       }

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mitra_apps/widgets/guru/detail_nilai_rekap.dart';
+import 'package:mitra_apps/widgets/guru/guru_app_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuruRekapNilaiView extends StatefulWidget {
   final String idGuru;
+  final String namaGuru;
 
-  const GuruRekapNilaiView({super.key, required this.idGuru});
+  const GuruRekapNilaiView({
+    super.key,
+    required this.idGuru,
+    required this.namaGuru,
+  });
 
   @override
   State<GuruRekapNilaiView> createState() => _GuruRekapNilaiViewState();
@@ -13,6 +20,7 @@ class GuruRekapNilaiView extends StatefulWidget {
 
 class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
   final supabase = Supabase.instance.client;
+
   static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
 
@@ -32,7 +40,6 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
     _ambilPenugasan();
   }
 
-  // ambil penugasan guru untuk dropdown
   Future<void> _ambilPenugasan() async {
     if (widget.idGuru.isEmpty) return;
     setState(() => _isLoadingPenugasan = true);
@@ -53,7 +60,6 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
     }
   }
 
-  // ambil rekap nilai per penugasan terpilih
   Future<void> _ambilRekap() async {
     if (_penugasanTerpilih == null) return;
     setState(() => _isLoadingRekap = true);
@@ -62,14 +68,12 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
       final idKelas = _penugasanTerpilih!['kelas']['id'].toString();
       final idMapel = _penugasanTerpilih!['mata_pelajaran']['id'].toString();
 
-      // Ambil semua siswa di kelas
       final siswaList = await supabase
           .from('siswa')
           .select('id_siswa, nama_siswa, nis')
           .eq('id_kelas', idKelas)
           .order('nama_siswa', ascending: true);
 
-      // Hitung nilai akhir per siswa via RPC
       final List<Map<String, dynamic>> rekap = [];
       for (final siswa in siswaList) {
         final hasil = await supabase.rpc(
@@ -106,172 +110,179 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        title: const Text(
-          'Rekap Nilai',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: _primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: Column(
-        children: [
-          // Filter panel
-          Container(
-            color: _primary,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                // Pilih kelas & mapel
-                _isLoadingPenugasan
-                    ? const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : DropdownButtonFormField<Map<String, dynamic>>(
-                        isExpanded: true,
-                        value: _penugasanTerpilih,
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 13,
-                        ),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.9),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.class_rounded,
-                            color: _primary,
-                            size: 20,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        hint: const Text('Pilih Kelas & Mapel'),
-                        items: _penugasanList
-                            .map(
-                              (p) => DropdownMenuItem(
-                                value: p,
-                                child: Text(
-                                  '${p['kelas']['nama_kelas']} - ${p['mata_pelajaran']['nama_mapel']}',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _penugasanTerpilih = v),
-                      ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    // Semester
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _semester,
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 13,
-                        ),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.9),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: '1',
-                            child: Text('Semester 1'),
-                          ),
-                          DropdownMenuItem(
-                            value: '2',
-                            child: Text('Semester 2'),
-                          ),
-                        ],
-                        onChanged: (v) => setState(() => _semester = v!),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Tombol tampilkan
-                    ElevatedButton(
-                      onPressed: _ambilRekap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: _primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Tampilkan',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _bg,
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // ── AppBar ───────────────────────────────────────────────────
+            GuruAppBar(namaGuru: widget.namaGuru),
 
-          // Rekap list
-          Expanded(
-            child: _isLoadingRekap
-                ? const Center(
-                    child: CircularProgressIndicator(color: _primary),
-                  )
-                : _rekapList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            // ── Filter panel ─────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Container(
+                color: _bg,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  children: [
+                    // Pilih kelas & mapel
+                    _isLoadingPenugasan
+                        ? const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : DropdownButtonFormField<Map<String, dynamic>>(
+                            isExpanded: true,
+                            value: _penugasanTerpilih,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 13,
+                            ),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.9),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.class_rounded,
+                                color: _primary,
+                                size: 20,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            hint: const Text('Pilih Kelas & Mapel'),
+                            items: _penugasanList
+                                .map(
+                                  (p) => DropdownMenuItem(
+                                    value: p,
+                                    child: Text(
+                                      '${p['kelas']['nama_kelas']} - ${p['mata_pelajaran']['nama_mapel']}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _penugasanTerpilih = v),
+                          ),
+                    const SizedBox(height: 10),
+                    Row(
                       children: [
-                        Icon(
-                          Icons.bar_chart_outlined,
-                          size: 60,
-                          color: Colors.grey.shade300,
+                        // Semester
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _semester,
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 13,
+                            ),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.9),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: '1',
+                                child: Text('Semester 1'),
+                              ),
+                              DropdownMenuItem(
+                                value: '2',
+                                child: Text('Semester 2'),
+                              ),
+                            ],
+                            onChanged: (v) => setState(() => _semester = v!),
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _penugasanTerpilih == null
-                              ? 'Pilih kelas & mapel dulu'
-                              : 'Belum ada data nilai',
-                          style: TextStyle(color: Colors.grey.shade400),
+                        const SizedBox(width: 10),
+                        // Tombol tampilkan
+                        ElevatedButton(
+                          onPressed: _ambilRekap,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: _primary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Tampilkan',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _rekapList.length,
-                    itemBuilder: (ctx, i) =>
-                        _buildRekapCard(_rekapList[i], i + 1),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Rekap list ───────────────────────────────────────────────
+            if (_isLoadingRekap)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: _primary),
+                ),
+              )
+            else if (_rekapList.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.bar_chart_outlined,
+                        size: 60,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _penugasanTerpilih == null
+                            ? 'Pilih kelas & mapel dulu'
+                            : 'Belum ada data nilai',
+                        style: TextStyle(color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
-          ),
-        ],
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _buildRekapCard(_rekapList[i], i + 1),
+                    childCount: _rekapList.length,
+                  ),
+                ),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
       ),
     );
   }
