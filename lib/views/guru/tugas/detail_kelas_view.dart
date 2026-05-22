@@ -23,8 +23,8 @@ class DetailKelasView extends StatefulWidget {
 
 class _DetailKelasViewState extends State<DetailKelasView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
+  static const _navy = Color(0xFF0F2D5C);
 
   List<Map<String, dynamic>> _listSiswa = [];
   bool _isLoading = true;
@@ -73,15 +73,15 @@ class _DetailKelasViewState extends State<DetailKelasView> {
             ),
           ],
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: _ambilSiswa,
-        color: _primary,
+        color: _navy,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: _primary))
+            ? const Center(child: CircularProgressIndicator(color: _navy))
             : _listSiswa.isEmpty
             ? Center(
                 child: Column(
@@ -136,7 +136,7 @@ class _DetailKelasViewState extends State<DetailKelasView> {
                           child: Text(
                             inisial.toUpperCase(),
                             style: const TextStyle(
-                              color: _primary,
+                              color: _navy,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
@@ -178,7 +178,7 @@ class _DetailKelasViewState extends State<DetailKelasView> {
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: _primary,
+                                color: _navy,
                               ),
                             ),
                           ),

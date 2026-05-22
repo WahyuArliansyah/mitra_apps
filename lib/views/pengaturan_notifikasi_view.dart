@@ -14,13 +14,7 @@ class _PengaturanNotifikasiViewState extends State<PengaturanNotifikasiView> {
 
   Future<void> _perbaikiNotifikasi() async {
     try {
-      // 1. Meminta izin Autostart (Xiaomi, Oppo, Vivo, dkk)
       bool? isAutoStartAvailable = await getAutoStartPermission();
-
-      // 2. Meminta izin mematikan optimasi baterai
-      // Package: auto_start_flutter menyediakan fungsi ini
-      // Note: Jika fungsi ini tidak jalan di versi package kamu,
-      // kamu bisa gunakan package 'optimize_battery' sebagai alternatif.
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Membuka pengaturan sistem...")),

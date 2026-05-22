@@ -14,8 +14,8 @@ class DetailTugasView extends StatefulWidget {
 
 class _DetailTugasViewState extends State<DetailTugasView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
+  static const _navy = Color(0xFF0F2D5C);
 
   List<Map<String, dynamic>> _listSiswa = [];
   Map<String, Map<String, dynamic>> _pengumpulanMap = {};
@@ -101,18 +101,18 @@ class _DetailTugasViewState extends State<DetailTugasView> {
             ),
           ],
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: _ambilData,
-        color: _primary,
+        color: _navy,
         child: Column(
           children: [
             // Info tugas
             Container(
-              color: _primary,
+              color: _navy,
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Row(
                 children: [
@@ -162,7 +162,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
                       'Total Siswa',
                       _listSiswa.length,
                       Icons.people_rounded,
-                      _primary,
+                      _navy,
                       const Color(0xFFE0F2FE),
                     ),
                   ),
@@ -193,9 +193,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
             // List siswa
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: _primary),
-                    )
+                  ? const Center(child: CircularProgressIndicator(color: _navy))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
                       itemCount: _listSiswa.length,
@@ -240,7 +238,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
       statusBg = const Color(0xFFFEF3E0);
     } else if (sudahKumpul) {
       statusLabel = 'Sudah Kumpul';
-      statusColor = _primary;
+      statusColor = _navy;
       statusBg = const Color(0xFFE0F2FE);
     } else {
       statusLabel = 'Belum Kumpul';
@@ -273,7 +271,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
             child: Text(
               inisial.toUpperCase(),
               style: const TextStyle(
-                color: _primary,
+                color: _navy,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -353,7 +351,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
                 decoration: BoxDecoration(
                   color: sudahDinilai
                       ? const Color(0xFFE6FAF5)
-                      : _primary.withOpacity(0.1),
+                      : _navy.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -361,7 +359,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: sudahDinilai ? const Color(0xFF059669) : _primary,
+                    color: sudahDinilai ? const Color(0xFF059669) : _navy,
                   ),
                 ),
               ),

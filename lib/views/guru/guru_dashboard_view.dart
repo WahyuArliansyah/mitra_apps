@@ -24,7 +24,6 @@ class _GuruDashboardViewState extends State<GuruDashboardView>
     with SingleTickerProviderStateMixin {
   final supabase = Supabase.instance.client;
 
-  // Skema warna utama untuk konsistensi desain
   static const _accent = Color(0xFF3B82F6);
   static const _accentSoft = Color(0xFFEFF6FF);
   static const _bg = Color(0xFFF0F4FA);

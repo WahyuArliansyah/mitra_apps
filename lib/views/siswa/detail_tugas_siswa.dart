@@ -21,7 +21,7 @@ class DetailTugasSiswa extends StatefulWidget {
 
 class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
+  static const _navy = Color(0xFF0F2D5C);
 
   final _catatanController = TextEditingController();
 
@@ -264,7 +264,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
@@ -276,7 +276,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
         ),
       ),
       body: _isLoadingPengumpulan
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: _navy))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -392,7 +392,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
           Container(
             height: 5,
             decoration: const BoxDecoration(
-              color: _primary,
+              color: _navy,
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
           ),
@@ -494,8 +494,8 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                       icon: const Icon(Icons.attach_file_rounded, size: 16),
                       label: const Text('Lihat File Soal'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _primary,
-                        side: const BorderSide(color: _primary),
+                        foregroundColor: _navy,
+                        side: const BorderSide(color: _navy),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -597,7 +597,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                     : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _filePicked != null ? _primary : Colors.grey.shade300,
+                  color: _filePicked != null ? _navy : Colors.grey.shade300,
                   width: _filePicked != null ? 1.5 : 1,
                 ),
               ),
@@ -608,9 +608,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                         ? Icons.insert_drive_file_rounded
                         : Icons.cloud_upload_rounded,
                     size: 40,
-                    color: _filePicked != null
-                        ? _primary
-                        : Colors.grey.shade400,
+                    color: _filePicked != null ? _navy : Colors.grey.shade400,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -619,9 +617,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                         : 'Ketuk untuk pilih file',
                     style: TextStyle(
                       fontSize: 13,
-                      color: _filePicked != null
-                          ? _primary
-                          : Colors.grey.shade500,
+                      color: _filePicked != null ? _navy : Colors.grey.shade500,
                       fontWeight: _filePicked != null
                           ? FontWeight.w600
                           : FontWeight.normal,
@@ -660,7 +656,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                         icon: const Icon(Icons.open_in_new_rounded, size: 14),
                         label: const Text('Lihat file yang sudah dikumpulkan'),
                         style: TextButton.styleFrom(
-                          foregroundColor: _primary,
+                          foregroundColor: _navy,
                           textStyle: const TextStyle(fontSize: 12),
                           padding: EdgeInsets.zero,
                         ),
@@ -700,7 +696,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
               ),
               focusedBorder: const OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: _primary),
+                borderSide: BorderSide(color: _navy),
               ),
             ),
           ),
@@ -736,7 +732,7 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
+                backgroundColor: _navy,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

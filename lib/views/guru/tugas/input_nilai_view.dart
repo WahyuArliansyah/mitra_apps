@@ -24,7 +24,7 @@ class InputNilaiView extends StatefulWidget {
 
 class _InputNilaiViewState extends State<InputNilaiView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
+  static const _navy = Color(0xFF0F2D5C);
 
   late TextEditingController _nilaiCtrl;
   late TextEditingController _umpanBalikCtrl;
@@ -144,7 +144,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
           isEdit ? 'Edit Nilai' : 'Beri Nilai',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -174,7 +174,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                     child: Text(
                       inisial.toUpperCase(),
                       style: const TextStyle(
-                        color: _primary,
+                        color: _navy,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -222,7 +222,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                     isPraktikum
                         ? Icons.science_rounded
                         : Icons.menu_book_rounded,
-                    color: isPraktikum ? const Color(0xFFD97706) : _primary,
+                    color: isPraktikum ? const Color(0xFFD97706) : _navy,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
@@ -306,22 +306,20 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFE0F2FE),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: _primary.withOpacity(0.3),
-                            ),
+                            border: Border.all(color: _navy.withOpacity(0.3)),
                           ),
                           child: const Row(
                             children: [
                               Icon(
                                 Icons.open_in_new_rounded,
-                                color: _primary,
+                                color: _navy,
                                 size: 16,
                               ),
                               SizedBox(width: 8),
                               Text(
                                 'Buka File Jawaban Siswa',
                                 style: TextStyle(
-                                  color: _primary,
+                                  color: _navy,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -368,7 +366,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 hintText: 'Masukkan nilai...',
-                prefixIcon: const Icon(Icons.grade_rounded, color: _primary),
+                prefixIcon: const Icon(Icons.grade_rounded, color: _navy),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
@@ -381,7 +379,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _primary, width: 2),
+                  borderSide: const BorderSide(color: _navy, width: 2),
                 ),
               ),
             ),
@@ -410,7 +408,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _primary, width: 2),
+                  borderSide: const BorderSide(color: _navy, width: 2),
                 ),
               ),
             ),
@@ -422,7 +420,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _simpanNilai,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
+                  backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

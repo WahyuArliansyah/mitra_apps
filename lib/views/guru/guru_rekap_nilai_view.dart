@@ -20,9 +20,8 @@ class GuruRekapNilaiView extends StatefulWidget {
 
 class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
   final supabase = Supabase.instance.client;
-
-  static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
+  static const _navy = Color(0xFF0F2D5C);
 
   List<Map<String, dynamic>> _penugasanList = [];
   Map<String, dynamic>? _penugasanTerpilih;
@@ -132,7 +131,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
                         ? const Padding(
                             padding: EdgeInsets.all(8),
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: _navy,
                               strokeWidth: 2,
                             ),
                           )
@@ -153,7 +152,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
                               ),
                               prefixIcon: const Icon(
                                 Icons.class_rounded,
-                                color: _primary,
+                                color: _navy,
                                 size: 20,
                               ),
                               border: OutlineInputBorder(
@@ -219,7 +218,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
                           onPressed: _ambilRekap,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: _primary,
+                            foregroundColor: _navy,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 14,
@@ -243,9 +242,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
             // ── Rekap list ───────────────────────────────────────────────
             if (_isLoadingRekap)
               const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: _primary),
-                ),
+                child: Center(child: CircularProgressIndicator(color: _navy)),
               )
             else if (_rekapList.isEmpty)
               SliverFillRemaining(
@@ -347,7 +344,7 @@ class _GuruRekapNilaiViewState extends State<GuruRekapNilaiView> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: _primary,
+                    color: _navy,
                   ),
                 ),
               ),

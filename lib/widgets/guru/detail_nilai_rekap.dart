@@ -31,8 +31,8 @@ class DetailNilaiSiswaView extends StatefulWidget {
 
 class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
   final supabase = Supabase.instance.client;
-  static const _primary = Color(0xFF0EA5E9);
   static const _bg = Color(0xFFF4F6FB);
+  static const _navy = Color(0xFF0F2D5C);
   // variable untuk rekap nilai
   final _rekapService = RekapNilaiService();
   bool _isDownloading = false;
@@ -142,7 +142,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
               child: Text(
                 actionLabel,
                 style: const TextStyle(
-                  color: Color(0xFF0EA5E9),
+                  color: Color(0xFF0F2D5C),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -150,7 +150,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0EA5E9),
+              backgroundColor: _navy,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -234,7 +234,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
             ),
           ],
         ),
-        backgroundColor: _primary,
+        backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -259,10 +259,10 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: _navy))
           : RefreshIndicator(
               onRefresh: _ambilData,
-              color: _primary,
+              color: _navy,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
@@ -308,7 +308,7 @@ class _DetailNilaiSiswaViewState extends State<DetailNilaiSiswaView> {
             child: Text(
               inisial,
               style: const TextStyle(
-                color: _primary,
+                color: _navy,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
