@@ -5,9 +5,6 @@ import 'package:mitra_apps/widgets/custom_main_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-// ============================================
-// THEME COLORS - Sesuai request kamu
-// ============================================
 class AppColors {
   static const Color navy = Color(0xFF0F2D5C);
   static const Color navyMid = Color(0xFF1A4080);
@@ -66,9 +63,7 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  // ============================================
-  // LOGIN LOGIC - TIDAK DIUBAH SAMA SEKALI
-  // ============================================
+  // Logic login
   Future<void> _prosesLogin() async {
     setState(() => _isLoading = true);
 
@@ -114,7 +109,8 @@ class _LoginViewState extends State<LoginView> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const AdminDashboardView(),
+                builder: (context) =>
+                    CustomMainNav(userId: userId, role: 'admin'),
               ),
             );
           } else if (peran == 'guru') {
@@ -224,19 +220,8 @@ class _LoginViewState extends State<LoginView> {
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
-                // ============================================
-                // HERO SECTION - Modern Gradient Design
-                // ============================================
                 _buildHeroSection(),
-
-                // ============================================
-                // LOGIN FORM - Clean Card Design
-                // ============================================
                 _buildLoginForm(),
-
-                // ============================================
-                // FOOTER
-                // ============================================
                 _buildFooter(),
               ],
             ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mitra_apps/views/admin/admin_dashboard_view.dart';
+import 'package:mitra_apps/views/admin/admin_rekap_nilai_view.dart';
 import 'package:mitra_apps/views/siswa/rekap_nilai_siswa.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mitra_apps/views/guru/guru_dashboard_view.dart';
@@ -70,6 +72,15 @@ class _CustomMainNavState extends State<CustomMainNav> {
             _namaProfile = data['nama_siswa'];
             _idKelas = data['id_kelas'] ?? '';
           }
+        } else if (_peran == 'admin') {
+          // ← tambah
+          _idProfile = widget.userId;
+          final data = await Supabase.instance.client
+              .from('pengguna')
+              .select('nama_lengkap')
+              .eq('id', widget.userId)
+              .maybeSingle();
+          if (data != null) _namaProfile = data['nama_lengkap'];
         }
       }
     } catch (e) {
@@ -104,6 +115,15 @@ class _CustomMainNavState extends State<CustomMainNav> {
         default:
           return SiswaDashboardView(idSiswa: _idProfile);
       }
+    } else if (_peran == 'admin') {
+      switch (_currentIndex) {
+        case 0:
+          return const AdminDashboardView();
+        case 1:
+          return const AdminRekapNilaiView();
+        default:
+          return const AdminDashboardView();
+      }
     }
 
     return const Center(child: Text('Akses ditolak.'));
@@ -115,7 +135,8 @@ class _CustomMainNavState extends State<CustomMainNav> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _activeColor))
           : _buildPage(),
-      bottomNavigationBar: _isLoading || _idProfile.isEmpty
+      bottomNavigationBar:
+          _isLoading || (_idProfile.isEmpty && _peran != 'admin')
           ? null
           : _buildNavbar(),
     );
@@ -134,6 +155,19 @@ class _CustomMainNavState extends State<CustomMainNav> {
               icon: Icons.school_outlined,
               activeIcon: Icons.school_rounded,
               label: 'Kelas',
+            ),
+            _NavItem(
+              icon: Icons.bar_chart_outlined,
+              activeIcon: Icons.bar_chart_rounded,
+              label: 'Rekap Nilai',
+            ),
+          ]
+        : _peran == 'admin'
+        ? const [
+            _NavItem(
+              icon: Icons.space_dashboard_outlined,
+              activeIcon: Icons.space_dashboard_rounded,
+              label: 'Dashboard',
             ),
             _NavItem(
               icon: Icons.bar_chart_outlined,
