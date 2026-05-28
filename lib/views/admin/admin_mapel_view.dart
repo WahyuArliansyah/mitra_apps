@@ -118,95 +118,115 @@ class _AdminMapelViewState extends State<AdminMapelView> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        title: Text(
-          isEdit ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              _inputField(
-                kodeCtrl,
-                'Kode Mapel',
-                'Contoh: MTK-01',
-                Icons.qr_code_rounded,
-              ),
-              const SizedBox(height: 16),
-              _inputField(
-                namaCtrl,
-                'Nama Mata Pelajaran',
-                'Contoh: Matematika',
-                Icons.menu_book_rounded,
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (namaCtrl.text.isEmpty || kodeCtrl.text.isEmpty) return;
-              try {
-                // Cek duplikat kode (hanya tambah baru atau kode diubah)
-                if (!isEdit || kodeCtrl.text.trim() != mapel!['kode_mapel']) {
-                  final cek = await supabase
-                      .from('mata_pelajaran')
-                      .select('id')
-                      .ilike('kode_mapel', kodeCtrl.text.trim());
-                  if (cek.isNotEmpty) {
-                    if (mounted)
-                      _showSnackbar(
-                        'Kode mapel sudah terdaftar!',
-                        isError: true,
-                      );
-                    return;
-                  }
-                }
-                final data = {
-                  'nama_mapel': namaCtrl.text.trim(),
-                  'kode_mapel': kodeCtrl.text.trim(),
-                };
-                if (isEdit) {
-                  await supabase
-                      .from('mata_pelajaran')
-                      .update(data)
-                      .eq('id', mapel!['id']);
-                } else {
-                  await supabase.from('mata_pelajaran').insert(data);
-                }
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  _ambilDataMapel();
-                  _showSnackbar(
-                    isEdit
-                        ? 'Data berhasil diperbarui.'
-                        : 'Mapel berhasil ditambahkan.',
-                  );
-                }
-              } catch (e) {
-                if (mounted) _showSnackbar('Error: $e', isError: true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          title: Text(
+            isEdit ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                _inputField(
+                  kodeCtrl,
+                  'Kode Mapel',
+                  'Contoh: MTK-01',
+                  Icons.qr_code_rounded,
+                  onChanged: (_) => setStateDialog(() {}),
+                ),
+                const SizedBox(height: 16),
+                _inputField(
+                  namaCtrl,
+                  'Nama Mata Pelajaran',
+                  'Contoh: Matematika',
+                  Icons.menu_book_rounded,
+                  onChanged: (_) => setStateDialog(() {}),
+                ),
+              ],
             ),
-            child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Data'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed:
+                  kodeCtrl.text.trim().isEmpty || namaCtrl.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      try {
+                        // Cek duplikat kode (hanya tambah baru atau kode diubah)
+                        if (!isEdit ||
+                            kodeCtrl.text.trim() != mapel!['kode_mapel']) {
+                          final cek = await supabase
+                              .from('mata_pelajaran')
+                              .select('id')
+                              .ilike('kode_mapel', kodeCtrl.text.trim());
+                          if (cek.isNotEmpty) {
+                            if (mounted)
+                              _showSnackbar(
+                                'Kode mapel sudah terdaftar!',
+                                isError: true,
+                              );
+                            return;
+                          }
+                        }
+                        final data = {
+                          'nama_mapel': namaCtrl.text.trim(),
+                          'kode_mapel': kodeCtrl.text.trim(),
+                        };
+                        if (isEdit) {
+                          await supabase
+                              .from('mata_pelajaran')
+                              .update(data)
+                              .eq('id', mapel!['id']);
+                        } else {
+                          await supabase.from('mata_pelajaran').insert(data);
+                        }
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          _ambilDataMapel();
+                          _showSnackbar(
+                            isEdit
+                                ? 'Data berhasil diperbarui.'
+                                : 'Mapel berhasil ditambahkan.',
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) _showSnackbar('Error: $e', isError: true);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    kodeCtrl.text.trim().isEmpty || namaCtrl.text.trim().isEmpty
+                    ? Colors
+                          .grey
+                          .shade400 // ← abu-abu jika belum lengkap
+                    : _primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Data'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -215,10 +235,12 @@ class _AdminMapelViewState extends State<AdminMapelView> {
     TextEditingController ctrl,
     String label,
     String hint,
-    IconData icon,
-  ) {
+    IconData icon, {
+    ValueChanged<String>? onChanged,
+  }) {
     return TextField(
       controller: ctrl,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

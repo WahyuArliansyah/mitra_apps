@@ -74,105 +74,127 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        // Mengatur lebar pop-up agar lebih besar
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        title: Text(isEdit ? 'Edit Data Guru' : 'Tambah Guru Baru'),
-        content: SizedBox(
-          // Memaksa lebar maksimal agar pop-up terlihat luas
-          width: MediaQuery.of(context).size.width * 0.9,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                _buildTextField(nipCtrl, 'NIP / NUPTK', Icons.badge_rounded),
-                const SizedBox(height: 20),
-                _buildTextField(namaCtrl, 'Nama Lengkap', Icons.person_rounded),
-                const SizedBox(height: 20),
-                _buildTextField(
-                  emailCtrl,
-                  'Email Aktif',
-                  Icons.email_rounded,
-                  type: TextInputType.emailAddress,
-                ),
-              ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          // Mengatur lebar pop-up agar lebih besar
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          title: Text(isEdit ? 'Edit Data Guru' : 'Tambah Guru Baru'),
+          content: SizedBox(
+            // Memaksa lebar maksimal agar pop-up terlihat luas
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  _buildTextField(
+                    nipCtrl,
+                    'NIP / NUPTK',
+                    Icons.badge_rounded,
+                    onChanged: (_) => setStateDialog(() {}),
+                    type: TextInputType.number,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                    namaCtrl,
+                    'Nama Lengkap',
+                    Icons.person_rounded,
+                    onChanged: (_) => setStateDialog(() {}),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                    emailCtrl,
+                    'Email Aktif',
+                    Icons.email_rounded,
+                    type: TextInputType.emailAddress,
+                    onChanged: (_) => setStateDialog(() {}),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 8),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 8),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () async {
-                if (namaCtrl.text.isEmpty || emailCtrl.text.isEmpty) {
-                  _showSnackbar('Nama dan Email wajib diisi!', isError: true);
-                  return;
-                }
-
-                // mengecek data duplikat sebelum simpan
-                if (!isEdit) {
-                  final duplikat = await _guruService.cekDataDuplikat(
-                    nipCtrl.text,
-                    namaCtrl.text,
-                    emailCtrl.text,
-                  );
-
-                  if (duplikat != null) {
-                    _showSnackbar('$duplikat sudah terdaftar!', isError: true);
+                onPressed: () async {
+                  if (namaCtrl.text.isEmpty || emailCtrl.text.isEmpty) {
+                    _showSnackbar('Nama dan Email wajib diisi!', isError: true);
                     return;
                   }
-                }
-                // tutup pop-up dulu biar animasi loadingnya keliatan
-                Navigator.pop(ctx);
 
-                // animasi loading
-                setState(() => _isLoading = true);
-                bool sukses;
-                if (isEdit) {
-                  sukses = await _guruService.updateGuru(guru.idGuru!, {
-                    'nip': nipCtrl.text,
-                    'nama_lengkap': namaCtrl.text,
-                    'email': emailCtrl.text,
-                  });
-                } else {
-                  final id = const Uuid().v4();
-                  sukses = await _guruService.tambahGuru(
-                    GuruModel(
-                      idGuru: id,
-                      userId: id,
-                      nip: nipCtrl.text,
-                      namaLengkap: namaCtrl.text,
-                      email: emailCtrl.text,
-                    ),
+                  // mengecek data duplikat sebelum simpan
+                  if (!isEdit) {
+                    final duplikat = await _guruService.cekDataDuplikat(
+                      nipCtrl.text,
+                      namaCtrl.text,
+                      emailCtrl.text,
+                    );
+
+                    if (duplikat != null) {
+                      _showSnackbar(
+                        '$duplikat sudah terdaftar!',
+                        isError: true,
+                      );
+                      return;
+                    }
+                  }
+                  // tutup pop-up dulu biar animasi loadingnya keliatan
+                  Navigator.pop(ctx);
+
+                  // animasi loading
+                  setState(() => _isLoading = true);
+                  bool sukses;
+                  if (isEdit) {
+                    sukses = await _guruService.updateGuru(guru.idGuru!, {
+                      'nip': nipCtrl.text,
+                      'nama_lengkap': namaCtrl.text,
+                      'email': emailCtrl.text,
+                    });
+                  } else {
+                    final id = const Uuid().v4();
+                    sukses = await _guruService.tambahGuru(
+                      GuruModel(
+                        idGuru: id,
+                        userId: id,
+                        nip: nipCtrl.text,
+                        namaLengkap: namaCtrl.text,
+                        email: emailCtrl.text,
+                      ),
+                    );
+                  }
+                  _ambilDataGuru();
+                  _showSnackbar(
+                    sukses ? 'Berhasil disimpan' : 'Gagal menyimpan',
+                    isError: !sukses,
                   );
-                }
-                _ambilDataGuru();
-                _showSnackbar(
-                  sukses ? 'Berhasil disimpan' : 'Gagal menyimpan',
-                  isError: !sukses,
-                );
-              },
-              child: const Text('Simpan Data'),
+                },
+                child: const Text('Simpan Data'),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -410,10 +432,12 @@ class _KelolaGuruViewState extends State<KelolaGuruView> {
     String label,
     IconData icon, {
     TextInputType type = TextInputType.text,
+    void Function(String)? onChanged,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: type,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontSize: 14),

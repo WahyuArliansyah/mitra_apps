@@ -140,6 +140,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
+        // ← satu saja, hapus yang dobel
         builder: (ctx, setStateDialog) => AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -163,6 +164,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                   'NIS / NISN',
                   'Contoh: 0012345678',
                   Icons.badge_rounded,
+                  onChanged: (_) => setStateDialog(() {}),
                 ),
                 const SizedBox(height: 16),
                 _inputField(
@@ -170,6 +172,7 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
                   'Nama Lengkap Siswa',
                   'Contoh: Andi Pratama',
                   Icons.person_rounded,
+                  onChanged: (_) => setStateDialog(() {}),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -212,57 +215,67 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
               child: const Text('Batal', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (nisCtrl.text.isEmpty ||
-                    namaCtrl.text.isEmpty ||
-                    idKelasTerpilih == null) {
-                  _showSnackbar('Semua field wajib diisi!', isError: true);
-                  return;
-                }
-                if (isEdit) {
-                  Navigator.pop(ctx);
-                  setState(() => _isLoading = true);
-                  await _siswaService.updateSiswa(siswa['id_siswa'], {
-                    'nis': nisCtrl.text.trim(),
-                    'nama_siswa': namaCtrl.text.trim(),
-                    'id_kelas': idKelasTerpilih,
-                  });
-                  if (mounted) {
-                    await _ambilDataSiswa();
-                    _showSnackbar('Data berhasil diperbarui.');
-                  }
-                } else {
-                  final cek = await supabase
-                      .from('siswa')
-                      .select('id_siswa')
-                      .eq('nis', nisCtrl.text.trim());
-                  if (cek.isNotEmpty) {
-                    if (mounted)
-                      _showSnackbar('NIS sudah digunakan!', isError: true);
-                    return;
-                  }
-                  Navigator.pop(ctx);
-                  setState(() => _isLoading = true);
-                  final sukses = await _siswaService.tambahSiswa(
-                    SiswaModel(
-                      nis: nisCtrl.text.trim(),
-                      namaSiswa: namaCtrl.text.trim(),
-                      idKelas: idKelasTerpilih,
-                    ),
-                  );
-                  if (mounted) {
-                    await _ambilDataSiswa();
-                    _showSnackbar(
-                      sukses
-                          ? 'Siswa berhasil ditambahkan.'
-                          : 'Gagal menambahkan siswa.',
-                      isError: !sukses,
-                    );
-                  }
-                }
-              },
+              // ← disabled jika ada field yang kosong
+              onPressed:
+                  nisCtrl.text.trim().isEmpty ||
+                      namaCtrl.text.trim().isEmpty ||
+                      idKelasTerpilih == null
+                  ? null
+                  : () async {
+                      if (isEdit) {
+                        Navigator.pop(ctx);
+                        setState(() => _isLoading = true);
+                        await _siswaService.updateSiswa(siswa['id_siswa'], {
+                          'nis': nisCtrl.text.trim(),
+                          'nama_siswa': namaCtrl.text.trim(),
+                          'id_kelas': idKelasTerpilih,
+                        });
+                        if (mounted) {
+                          await _ambilDataSiswa();
+                          _showSnackbar('Data berhasil diperbarui.');
+                        }
+                      } else {
+                        final cek = await supabase
+                            .from('siswa')
+                            .select('id_siswa')
+                            .eq('nis', nisCtrl.text.trim());
+                        if (cek.isNotEmpty) {
+                          if (mounted)
+                            _showSnackbar(
+                              'NIS sudah digunakan!',
+                              isError: true,
+                            );
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        setState(() => _isLoading = true);
+                        final sukses = await _siswaService.tambahSiswa(
+                          SiswaModel(
+                            nis: nisCtrl.text.trim(),
+                            namaSiswa: namaCtrl.text.trim(),
+                            idKelas: idKelasTerpilih,
+                          ),
+                        );
+                        if (mounted) {
+                          await _ambilDataSiswa();
+                          _showSnackbar(
+                            sukses
+                                ? 'Siswa berhasil ditambahkan.'
+                                : 'Gagal menambahkan siswa.',
+                            isError: !sukses,
+                          );
+                        }
+                      }
+                    },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
+                backgroundColor:
+                    nisCtrl.text.trim().isEmpty ||
+                        namaCtrl.text.trim().isEmpty ||
+                        idKelasTerpilih == null
+                    ? Colors
+                          .grey
+                          .shade400 // ← abu-abu jika belum lengkap
+                    : _primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -284,10 +297,12 @@ class _AdminSiswaViewState extends State<AdminSiswaView> {
     TextEditingController ctrl,
     String label,
     String hint,
-    IconData icon,
-  ) {
+    IconData icon, {
+    ValueChanged<String>? onChanged, // ← tambah
+  }) {
     return TextField(
       controller: ctrl,
+      onChanged: onChanged, // ← tambah
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

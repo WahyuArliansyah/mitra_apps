@@ -111,7 +111,7 @@ class _AdminKelasViewState extends State<AdminKelasView> {
         false;
   }
 
-  // ── Dialog Form (Tambah & Edit) ─────────────────────────
+  // Digunakan untuk menampilkan form tambah/edit kelas.
   void _tampilkanForm({Map<String, dynamic>? kelas}) {
     final isEdit = kelas != null;
     final namaCtrl = TextEditingController(text: kelas?['nama_kelas'] ?? '');
@@ -119,94 +119,116 @@ class _AdminKelasViewState extends State<AdminKelasView> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        title: Text(
-          isEdit ? 'Edit Data Kelas' : 'Tambah Kelas Baru',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              _inputField(
-                namaCtrl,
-                'Nama Kelas',
-                'Contoh: XII TKJ 1',
-                Icons.class_outlined,
-              ),
-              const SizedBox(height: 16),
-              _inputField(
-                jurusanCtrl,
-                'Jurusan',
-                'Contoh: Teknik Komputer Jaringan',
-                Icons.account_tree_outlined,
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (namaCtrl.text.isEmpty || jurusanCtrl.text.isEmpty) return;
-              try {
-                if (!isEdit) {
-                  final cek = await supabase
-                      .from('kelas')
-                      .select('id')
-                      .ilike('nama_kelas', namaCtrl.text.trim());
-                  if (cek.isNotEmpty) {
-                    if (mounted)
-                      _showSnackbar(
-                        'Nama kelas sudah terdaftar!',
-                        isError: true,
-                      );
-                    return;
-                  }
-                  await supabase.from('kelas').insert({
-                    'nama_kelas': namaCtrl.text.trim(),
-                    'jurusan': jurusanCtrl.text.trim(),
-                  });
-                } else {
-                  await supabase
-                      .from('kelas')
-                      .update({
-                        'nama_kelas': namaCtrl.text.trim(),
-                        'jurusan': jurusanCtrl.text.trim(),
-                      })
-                      .eq('id', kelas!['id']);
-                }
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  _ambilDataKelas();
-                  _showSnackbar(
-                    isEdit
-                        ? 'Data berhasil diperbarui.'
-                        : 'Kelas berhasil ditambahkan.',
-                  );
-                }
-              } catch (e) {
-                if (mounted) _showSnackbar('Error: $e', isError: true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          title: Text(
+            isEdit ? 'Edit Data Kelas' : 'Tambah Kelas Baru',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                _inputField(
+                  namaCtrl,
+                  'Nama Kelas',
+                  'Contoh: XII TKJ 1',
+                  Icons.class_outlined,
+                  onChanged: (_) => setStateDialog(() {}), // ← tambah
+                ),
+                const SizedBox(height: 16),
+                _inputField(
+                  jurusanCtrl,
+                  'Jurusan',
+                  'Contoh: Teknik Komputer Jaringan',
+                  Icons.account_tree_outlined,
+                  onChanged: (_) => setStateDialog(() {}), // ← tambah
+                ),
+              ],
             ),
-            child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Data'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              // ← disabled jika ada field yang kosong
+              onPressed:
+                  namaCtrl.text.trim().isEmpty ||
+                      jurusanCtrl.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      try {
+                        if (!isEdit) {
+                          final cek = await supabase
+                              .from('kelas')
+                              .select('id')
+                              .ilike('nama_kelas', namaCtrl.text.trim());
+                          if (cek.isNotEmpty) {
+                            if (mounted)
+                              _showSnackbar(
+                                'Nama kelas sudah terdaftar!',
+                                isError: true,
+                              );
+                            return;
+                          }
+                          await supabase.from('kelas').insert({
+                            'nama_kelas': namaCtrl.text.trim(),
+                            'jurusan': jurusanCtrl.text.trim(),
+                          });
+                        } else {
+                          await supabase
+                              .from('kelas')
+                              .update({
+                                'nama_kelas': namaCtrl.text.trim(),
+                                'jurusan': jurusanCtrl.text.trim(),
+                              })
+                              .eq('id', kelas!['id']);
+                        }
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          _ambilDataKelas();
+                          _showSnackbar(
+                            isEdit
+                                ? 'Data berhasil diperbarui.'
+                                : 'Kelas berhasil ditambahkan.',
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) _showSnackbar('Error: $e', isError: true);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    namaCtrl.text.trim().isEmpty ||
+                        jurusanCtrl.text.trim().isEmpty
+                    ? Colors
+                          .grey
+                          .shade400 // ← abu-abu jika belum lengkap
+                    : _primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Data'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -215,10 +237,12 @@ class _AdminKelasViewState extends State<AdminKelasView> {
     TextEditingController ctrl,
     String label,
     String hint,
-    IconData icon,
-  ) {
+    IconData icon, {
+    ValueChanged<String>? onChanged,
+  }) {
     return TextField(
       controller: ctrl,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

@@ -102,9 +102,19 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
     );
 
     if (result != null && result.files.single.path != null) {
+      final file = result.files.single;
+      const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+      if (file.size != null && file.size! > maxSizeBytes) {
+        if (mounted) {
+          _showSnackbar('File melebihi batas 5 MB!', isError: true);
+        }
+        return;
+      }
+
       setState(() {
-        _filePicked = File(result.files.single.path!);
-        _filePickedName = result.files.single.name;
+        _filePicked = File(file.path!);
+        _filePickedName = file.name;
       });
     }
   }
@@ -666,6 +676,27 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F4FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _navy.withOpacity(0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: Colors.red, size: 14),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Maksimal ukuran file 5 MB',
+                    style: TextStyle(fontSize: 11, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
 
           // Catatan siswa
@@ -706,7 +737,10 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isUploading ? null : _kumpulkanTugas,
+              onPressed:
+                  _isUploading || (_pengumpulan == null && _filePicked == null)
+                  ? null
+                  : _kumpulkanTugas,
               icon: _isUploading
                   ? const SizedBox(
                       width: 18,
@@ -732,7 +766,11 @@ class _DetailTugasSiswaViewState extends State<DetailTugasSiswa> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _navy,
+                backgroundColor: (_pengumpulan == null && _filePicked == null)
+                    ? Colors
+                          .grey
+                          .shade400 // ← abu-abu jika belum ada file
+                    : _navy,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

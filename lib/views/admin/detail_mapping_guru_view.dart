@@ -343,6 +343,7 @@ class _DetailMappingGuruViewState extends State<DetailMappingGuruView> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: tahunCtrl,
+                    onChanged: (_) => setStateDialog(() {}),
                     decoration: inputDeco(
                       'Tahun Ajaran',
                       Icons.calendar_today_rounded,
@@ -369,26 +370,37 @@ class _DetailMappingGuruViewState extends State<DetailMappingGuruView> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
+                backgroundColor:
+                    idKelas == null ||
+                        idMapel == null ||
+                        tahunCtrl.text.trim().isEmpty
+                    ? Colors
+                          .grey
+                          .shade400 // ← abu-abu jika belum lengkap
+                    : _primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onPressed: () async {
-                if (idKelas == null || idMapel == null) return;
-                await supabase
-                    .from('penugasan_guru')
-                    .update({
-                      'id_kelas': idKelas,
-                      'id_mapel': idMapel,
-                      'tahun_ajaran': tahunCtrl.text,
-                      'semester': semester,
-                    })
-                    .eq('id', mapping['id'].toString());
-                if (ctx.mounted) Navigator.pop(ctx);
-                _ambilData();
-              },
+              onPressed:
+                  idKelas == null ||
+                      idMapel == null ||
+                      tahunCtrl.text.trim().isEmpty
+                  ? null // ← disabled jika belum lengkap
+                  : () async {
+                      await supabase
+                          .from('penugasan_guru')
+                          .update({
+                            'id_kelas': idKelas,
+                            'id_mapel': idMapel,
+                            'tahun_ajaran': tahunCtrl.text,
+                            'semester': semester,
+                          })
+                          .eq('id', mapping['id'].toString());
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _ambilData();
+                    },
               child: const Text('Simpan Perubahan'),
             ),
           ],

@@ -14,7 +14,6 @@ class BuatTugasView extends StatefulWidget {
 
 class _BuatTugasViewState extends State<BuatTugasView> {
   final supabase = Supabase.instance.client;
-  // static const _primary = Color(0xFF0EA5E9);
   static const _navy = Color(0xFF0F2D5C);
 
   final _judulCtrl = TextEditingController();
@@ -32,20 +31,22 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   List<Map<String, dynamic>> _listMapel = [];
   List<Map<String, dynamic>> _penugasanGuru = [];
 
-  PlatformFile? _fileTerpilih;
+  PlatformFile? _fileTerpilih; // ← single file
   bool _isLoading = false;
   bool _isUploading = false;
 
-  // Logika visibilitas
-  // File lampiran tampil HANYA jika: teori + upload
   bool get _tampilFile => _typeTugas == 'teori' && _metode == 'upload';
-
-  // Metode penilaian tampil HANYA jika: teori
-  // Praktikum otomatis = manual
   bool get _tampilMetode => _typeTugas == 'teori';
-
-  // Deadline tampil HANYA jika: teori + upload
   bool get _tampilDeadline => _typeTugas == 'teori' && _metode == 'upload';
+
+  bool get _isFormValid {
+    final judulValid = _judulCtrl.text.isNotEmpty;
+    final kelasValid = _idKelasTerpilih != null;
+    final mapelValid = _idMapelTerpilih != null;
+    final deadlineValid = !_tampilDeadline || _deadline != null;
+    final fileValid = !_tampilFile || _fileTerpilih != null;
+    return judulValid && kelasValid && mapelValid && deadlineValid && fileValid;
+  }
 
   @override
   void initState() {
@@ -101,7 +102,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   void _onTypeTugasChanged(String type) {
     setState(() {
       _typeTugas = type;
-      // Praktikum otomatis pakai manual & reset file
       if (type == 'praktikum') {
         _metode = 'manual';
         _fileTerpilih = null;
@@ -115,7 +115,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
   void _onMetodeChanged(String metode) {
     setState(() {
       _metode = metode;
-      // Jika ganti ke manual, reset file & deadline
       if (metode == 'manual') {
         _fileTerpilih = null;
         _deadline = null;
@@ -125,7 +124,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
   Future<void> _kirimNotifikasi(String idTugas) async {
     try {
-      // Ambil semua siswa di kelas yang dipilih
       final siswaList = await supabase
           .from('siswa')
           .select('id_siswa')
@@ -133,13 +131,11 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
       if (siswaList.isEmpty) return;
 
-      // Ambil nama mapel untuk isi notifikasi
       final namaMapel = _listMapel.firstWhere(
         (m) => m['id'].toString() == _idMapelTerpilih,
         orElse: () => {'nama_mapel': 'Mata Pelajaran'},
       )['nama_mapel'];
 
-      // Insert notifikasi untuk setiap siswa
       final notifList = (siswaList as List)
           .map(
             (s) => {
@@ -163,14 +159,23 @@ class _BuatTugasViewState extends State<BuatTugasView> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png'],
+      allowMultiple: false, // ← single file
     );
-    if (result != null) {
-      setState(() => _fileTerpilih = result.files.first);
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.first;
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (file.size != null && file.size! > maxSizeBytes) {
+        if (mounted) {
+          _showSnackbar('File melebihi batas 5 MB!', isError: true);
+        }
+        return;
+      }
+      setState(() => _fileTerpilih = file);
     }
   }
 
-  Future<String?> _uploadFile() async {
-    if (_fileTerpilih == null) return null;
+  Future<List<String>> _uploadFile() async {
+    if (_fileTerpilih == null) return [];
     setState(() => _isUploading = true);
     try {
       final file = File(_fileTerpilih!.path!);
@@ -178,10 +183,11 @@ class _BuatTugasViewState extends State<BuatTugasView> {
           '${DateTime.now().millisecondsSinceEpoch}_${_fileTerpilih!.name}';
       final path = 'tugas/$fileName';
       await supabase.storage.from('tugas-files').upload(path, file);
-      return supabase.storage.from('tugas-files').getPublicUrl(path);
+      final url = supabase.storage.from('tugas-files').getPublicUrl(path);
+      return [url];
     } catch (e) {
       debugPrint('Upload error: $e');
-      return null;
+      return [];
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -194,7 +200,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
       _showSnackbar('Judul, kelas, dan mapel wajib diisi!', isError: true);
       return;
     }
-    debugPrint('Deadline yang akan disimpan: ${_deadline?.toIso8601String()}');
     if (_tampilDeadline && _deadline == null) {
       _showSnackbar('Tenggat waktu wajib diisi!', isError: true);
       return;
@@ -202,12 +207,11 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
     setState(() => _isLoading = true);
     try {
-      String? urlFile;
+      List<String> urlFile = [];
       if (_tampilFile && _fileTerpilih != null) {
         urlFile = await _uploadFile();
       }
 
-      // Insert tugas dan ambil ID nya
       final result = await supabase
           .from('tugas')
           .insert({
@@ -216,7 +220,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             'id_mapel': _idMapelTerpilih,
             'judul_tugas': _judulCtrl.text.trim(),
             'deskripsi': _deskripsiCtrl.text.trim(),
-            'url_file_tugas': urlFile,
+            'url_file_tugas': urlFile.isNotEmpty ? urlFile.join(';') : null,
             'type_tugas': _typeTugas,
             'metode': _metode,
             'semester': _semester,
@@ -226,7 +230,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
           .select('id')
           .single();
 
-      // Kirim notifikasi hanya jika teori + upload
       if (_typeTugas == 'teori' && _metode == 'upload') {
         await _kirimNotifikasi(result['id']);
       }
@@ -309,7 +312,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Milih tipe tugas
+            // ── Tipe Tugas ──
             _sectionLabel('Tipe Tugas'),
             const SizedBox(height: 8),
             Row(
@@ -336,7 +339,6 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               ],
             ),
 
-            // Jika praktikum, tampilkan info tambahan
             if (_typeTugas == 'praktikum') ...[
               const SizedBox(height: 10),
               Container(
@@ -372,7 +374,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
 
             const SizedBox(height: 16),
 
-            // Memilih metode penilaian (hanya untuk teori)
+            // ── Metode Penilaian ──
             if (_tampilMetode) ...[
               _sectionLabel('Metode Penilaian'),
               const SizedBox(height: 8),
@@ -402,7 +404,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               const SizedBox(height: 16),
             ],
 
-            // Milih kelas
+            // ── Kelas ──
             DropdownButtonFormField<String>(
               value: _idKelasTerpilih,
               decoration: _inputDeco('Pilih Kelas', Icons.class_rounded),
@@ -426,7 +428,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Mapel disesuaikan dengan kelas yang dipilih
+            // ── Mapel ──
             DropdownButtonFormField<String>(
               value: _idMapelTerpilih,
               decoration: _inputDeco(
@@ -450,7 +452,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // Milih semester dan tahun ajaran
+            // ── Semester & Tahun Ajaran ──
             Row(
               children: [
                 Expanded(
@@ -492,7 +494,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
             ),
             const SizedBox(height: 16),
 
-            // ── Deadline (hanya teori + upload) ──
+            // ── Deadline ──
             if (_tampilDeadline) ...[
               _sectionLabel('Tenggat Waktu'),
               const SizedBox(height: 8),
@@ -546,7 +548,9 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                         child: Text(
                           _deadline == null
                               ? 'Pilih tenggat waktu'
-                              : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year} ${_deadline!.hour.toString().padLeft(2, '0')}:${_deadline!.minute.toString().padLeft(2, '0')}',
+                              : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year} '
+                                    '${_deadline!.hour.toString().padLeft(2, '0')}:'
+                                    '${_deadline!.minute.toString().padLeft(2, '0')}',
                           style: TextStyle(
                             color: _deadline == null
                                 ? Colors.grey
@@ -570,9 +574,9 @@ class _BuatTugasViewState extends State<BuatTugasView> {
               const SizedBox(height: 16),
             ],
 
-            // File lampiran (hanya teori + upload)
+            // ── File Lampiran (single) ──
             if (_tampilFile) ...[
-              _sectionLabel('File Lampiran (opsional)'),
+              _sectionLabel('File Lampiran'),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pilihFile,
@@ -598,17 +602,33 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          _fileTerpilih != null
-                              ? _fileTerpilih!.name
-                              : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
-                          style: TextStyle(
-                            color: _fileTerpilih != null
-                                ? Colors.black87
-                                : Colors.grey,
-                            fontSize: 13,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _fileTerpilih != null
+                                  ? _fileTerpilih!.name
+                                  : 'Pilih file (PDF, Word, Excel, JPG, PNG)',
+                              style: TextStyle(
+                                color: _fileTerpilih != null
+                                    ? Colors.black87
+                                    : Colors.grey,
+                                fontSize: 13,
+                                fontWeight: _fileTerpilih != null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_fileTerpilih != null)
+                              Text(
+                                '${(_fileTerpilih!.size! / (1024 * 1024)).toStringAsFixed(2)} MB',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (_fileTerpilih != null)
@@ -624,18 +644,41 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F4FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _navy.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.red, size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Maksimal Upload 5 MB',
+                        style: TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
             ],
 
             const SizedBox(height: 12),
 
-            // Style tombol simpan
+            // ── Tombol Simpan ──
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading || _isUploading ? null : _simpan,
+                onPressed: (_isLoading || _isUploading || !_isFormValid)
+                    ? null
+                    : _simpan,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
+                  backgroundColor: _isFormValid ? _navy : Colors.grey.shade400,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

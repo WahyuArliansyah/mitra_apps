@@ -32,6 +32,15 @@ class _BuatMateriViewState extends State<BuatMateriView> {
   bool _isLoading = false;
   bool _isUploading = false;
 
+  // Validasi form
+  bool get _isFormValid {
+    final judulValid = _judulCtrl.text.isNotEmpty;
+    final kelasValid = _idKelasTerpilih != null;
+    final mapelValid = _idMapelTerpilih != null;
+    final fileValid = _fileTerpilih != null;
+    return judulValid && kelasValid && mapelValid && fileValid;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -102,7 +111,17 @@ class _BuatMateriViewState extends State<BuatMateriView> {
       ],
     );
     if (result != null) {
-      setState(() => _fileTerpilih = result.files.first);
+      const maxSizeMB = 5;
+      final maxSizeBytes = maxSizeMB * 1024 * 1024;
+      final file = result.files.first;
+
+      if (file.size != null && file.size! > maxSizeBytes) {
+        if (mounted) {
+          _showSnackbar('Upload Melebihi 5MB: ${file.name}', isError: true);
+        }
+      } else {
+        setState(() => _fileTerpilih = file);
+      }
     }
   }
 
@@ -129,18 +148,6 @@ class _BuatMateriViewState extends State<BuatMateriView> {
 
   // Simpan data materi ke database
   Future<void> _simpan() async {
-    if (_judulCtrl.text.isEmpty ||
-        _idKelasTerpilih == null ||
-        _idMapelTerpilih == null) {
-      _showSnackbar('Judul, kelas, dan mapel wajib diisi!', isError: true);
-      return;
-    }
-
-    if (_fileTerpilih == null) {
-      _showSnackbar('File materi wajib diunggah!', isError: true);
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
       final urlFile = await _uploadFile();
@@ -379,17 +386,30 @@ class _BuatMateriViewState extends State<BuatMateriView> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        _fileTerpilih != null
-                            ? _fileTerpilih!.name
-                            : 'Pilih file (PDF, Word, PPT, JPG)',
-                        style: TextStyle(
-                          color: _fileTerpilih != null
-                              ? Colors.black87
-                              : Colors.grey,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _fileTerpilih != null
+                                ? _fileTerpilih!.name
+                                : 'Pilih file (PDF, Word, PPT, JPG)',
+                            style: TextStyle(
+                              color: _fileTerpilih != null
+                                  ? Colors.black87
+                                  : Colors.grey,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (_fileTerpilih != null)
+                            Text(
+                              '${(_fileTerpilih!.size! / (1024 * 1024)).toStringAsFixed(2)} MB',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     if (_fileTerpilih != null)
@@ -405,14 +425,37 @@ class _BuatMateriViewState extends State<BuatMateriView> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F4FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _navy.withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Maksimal Upload 5 MB',
+                      style: TextStyle(fontSize: 12, color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 30),
 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading || _isUploading ? null : _simpan,
+                onPressed: (_isLoading || _isUploading || !_isFormValid)
+                    ? null
+                    : _simpan,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy,
+                  backgroundColor: _isFormValid ? _navy : Colors.grey.shade400,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
