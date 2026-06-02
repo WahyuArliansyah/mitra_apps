@@ -189,7 +189,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
                 // Filter dropdowns
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -445,7 +445,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
         children: [
           // Header tabel
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: const BoxDecoration(
               color: _navy,
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -509,6 +509,7 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
           // Baris data
           ListView.separated(
             shrinkWrap: true,
+            padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _listNilai.length,
             separatorBuilder: (_, __) =>
@@ -662,7 +663,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   Widget _buildPlaceholder() {
     return Container(
       width: double.infinity,

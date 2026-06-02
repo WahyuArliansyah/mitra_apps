@@ -238,7 +238,7 @@ class _InputNilaiViewState extends State<InputNilaiView> {
                           ),
                         ),
                         Text(
-                          '${isPraktikum ? 'Praktikum' : 'Materi'} • Bobot ${isPraktikum ? '70%' : '30%'}',
+                          '${isPraktikum ? 'Praktikum' : 'Teori'} • Bobot ${isPraktikum ? '70%' : '30%'}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,

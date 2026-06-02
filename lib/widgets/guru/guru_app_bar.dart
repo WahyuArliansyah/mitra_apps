@@ -113,45 +113,6 @@ class GuruAppBar extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // ── Decorative circles ──────────────────────────────────────────
-          Positioned(
-            top: -30,
-            right: -20,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _white.withOpacity(0.05),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: 60,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _white.withOpacity(0.06),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 30,
-            left: -30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _white.withOpacity(0.04),
-              ),
-            ),
-          ),
-
-          // ── Content ─────────────────────────────────────────────────────
           SafeArea(
             bottom: false,
             child: Padding(

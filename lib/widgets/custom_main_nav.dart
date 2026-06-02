@@ -27,7 +27,7 @@ class _CustomMainNavState extends State<CustomMainNav> {
   bool _isLoading = true;
 
   static const _guruColor = Color(0xFF4F46E5);
-  static const _siswaColor = Color(0xFF1D9E75);
+  static const _siswaColor = Color(0xFF4F46E5);
 
   Color get _activeColor => _peran == 'guru' ? _guruColor : _siswaColor;
 
@@ -142,7 +142,7 @@ class _CustomMainNavState extends State<CustomMainNav> {
     );
   }
 
-  // ── Navbar ────────────────────────────────────────────────
+  // Navbar khusus untuk guru dan siswa
   Widget _buildNavbar() {
     final items = _peran == 'guru'
         ? const [

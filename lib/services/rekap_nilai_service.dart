@@ -23,90 +23,136 @@ class RekapNilaiService {
       }
 
       final excel = Excel.createExcel();
-      final sheet = excel['Nilai Siswa'];
+      final sheet = excel['Laporan Nilai'];
+      excel.delete('Sheet1');
 
-      final headerStyle = CellStyle(
+      // ── Style ────────────────────────────────────────────────────
+      final navyBg = ExcelColor.fromHexString('#0F2D5C');
+      final whiteFg = ExcelColor.fromHexString('#FFFFFF');
+      final softBg = ExcelColor.fromHexString('#F8FAFC');
+      final blueBg = ExcelColor.fromHexString('#E0F2FE');
+      final blueFg = ExcelColor.fromHexString('#075985');
+      final amberBg = ExcelColor.fromHexString('#FEF3E0');
+      final amberFg = ExcelColor.fromHexString('#92400E');
+      final greenFg = ExcelColor.fromHexString('#059669');
+      final orangeFg = ExcelColor.fromHexString('#D97706');
+      final skyFg = ExcelColor.fromHexString('#0EA5E9');
+      final mutedFg = ExcelColor.fromHexString('#6B7280');
+      final darkFg = ExcelColor.fromHexString('#1A1F36');
+
+      CellStyle headerStyle() => CellStyle(
         bold: true,
-        backgroundColorHex: ExcelColor.fromHexString('#0EA5E9'),
-        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: navyBg,
+        fontColorHex: whiteFg,
         horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
       );
 
-      // ── Judul ──
+      CellStyle labelStyle() => CellStyle(bold: true, fontColorHex: darkFg);
+
+      CellStyle mutedStyle() => CellStyle(fontColorHex: mutedFg);
+
+      // ── Header Sekolah ───────────────────────────────────────────
       sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('E1'));
-      final judulCell = sheet.cell(CellIndex.indexByString('A1'));
-      judulCell.value = TextCellValue('LAPORAN NILAI SISWA');
-      judulCell.cellStyle = CellStyle(
+      final sekolahCell = sheet.cell(CellIndex.indexByString('A1'));
+      sekolahCell.value = TextCellValue('SMK MITRA PERMATA');
+      sekolahCell.cellStyle = CellStyle(
         bold: true,
         fontSize: 14,
+        fontColorHex: whiteFg,
+        backgroundColorHex: navyBg,
         horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
       );
 
-      // Informasi siswa di bawah judul
+      sheet.merge(CellIndex.indexByString('A2'), CellIndex.indexByString('E2'));
+      final subJudulCell = sheet.cell(CellIndex.indexByString('A2'));
+      subJudulCell.value = TextCellValue('Laporan Nilai Tugas Harian');
+      subJudulCell.cellStyle = CellStyle(
+        fontSize: 11,
+        fontColorHex: ExcelColor.fromHexString('#93C5FD'),
+        backgroundColorHex: navyBg,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      // ── Info Siswa ───────────────────────────────────────────────
       final infoData = [
         ['Nama Siswa', namaSiswa],
         ['NIS', nis],
         ['Kelas', namaKelas],
         ['Mata Pelajaran', namaMapel],
-        ['Semester', semester],
-        ['Tahun Ajaran', tahunAjaran],
+        ['Semester', 'Semester $semester  —  $tahunAjaran'],
       ];
 
       for (int i = 0; i < infoData.length; i++) {
-        final row = i + 2;
-        sheet.cell(CellIndex.indexByString('A$row')).value = TextCellValue(
-          infoData[i][0],
+        final row = i + 4;
+
+        final cellLabel = sheet.cell(CellIndex.indexByString('A$row'));
+        cellLabel.value = TextCellValue(infoData[i][0]);
+        cellLabel.cellStyle = CellStyle(
+          fontSize: 11,
+          fontColorHex: mutedFg,
+          backgroundColorHex: i % 2 == 0
+              ? ExcelColor.fromHexString('#FFFFFF')
+              : ExcelColor.fromHexString('#F8FAFC'),
         );
-        sheet.cell(CellIndex.indexByString('A$row')).cellStyle = CellStyle(
+
+        sheet.merge(
+          CellIndex.indexByString('B$row'),
+          CellIndex.indexByString('E$row'),
+        );
+        final cellValue = sheet.cell(CellIndex.indexByString('B$row'));
+        cellValue.value = TextCellValue(infoData[i][1]);
+        cellValue.cellStyle = CellStyle(
           bold: true,
-        );
-        sheet.cell(CellIndex.indexByString('B$row')).value = TextCellValue(
-          ': ${infoData[i][1]}',
+          fontSize: 11,
+          fontColorHex: darkFg,
+          backgroundColorHex: i % 2 == 0
+              ? ExcelColor.fromHexString('#FFFFFF')
+              : ExcelColor.fromHexString('#F8FAFC'),
         );
       }
 
-      // Ringkasan nilai mulai dari baris setelah info siswa
-      final ringkasanRow = infoData.length + 3;
-
+      // ── Label Ringkasan ──────────────────────────────────────────
       sheet.merge(
-        CellIndex.indexByString('A$ringkasanRow'),
-        CellIndex.indexByString('E$ringkasanRow'),
+        CellIndex.indexByString('A10'),
+        CellIndex.indexByString('E10'),
       );
-      sheet.cell(CellIndex.indexByString('A$ringkasanRow')).value =
-          TextCellValue('RINGKASAN NILAI');
-      sheet
-          .cell(CellIndex.indexByString('A$ringkasanRow'))
-          .cellStyle = CellStyle(
+      final ringkasanLabel = sheet.cell(CellIndex.indexByString('A10'));
+      ringkasanLabel.value = TextCellValue('RINGKASAN NILAI');
+      ringkasanLabel.cellStyle = CellStyle(
         bold: true,
-        backgroundColorHex: ExcelColor.fromHexString('#F0F9FF'),
-        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 10,
+        fontColorHex: mutedFg,
+        backgroundColorHex: softBg,
+        horizontalAlign: HorizontalAlign.Left,
       );
 
-      final ringkasanHeaderRow = ringkasanRow + 1;
+      // ── Header Ringkasan ─────────────────────────────────────────
       final ringkasanHeaders = [
         'Rata-rata Teori',
         'Rata-rata Praktikum',
         'Nilai Tugas',
-        'Nilai Akhir (40%)',
+        'Nilai Tugas Harian',
+        '',
       ];
-      final ringkasanCols = ['A', 'B', 'C', 'D'];
-
       for (int i = 0; i < ringkasanHeaders.length; i++) {
         final cell = sheet.cell(
-          CellIndex.indexByString('${ringkasanCols[i]}$ringkasanHeaderRow'),
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 10),
         );
         cell.value = TextCellValue(ringkasanHeaders[i]);
-        cell.cellStyle = headerStyle;
+        cell.cellStyle = CellStyle(
+          bold: true,
+          fontSize: 11,
+          fontColorHex: mutedFg,
+          backgroundColorHex: softBg,
+          horizontalAlign: HorizontalAlign.Center,
+        );
       }
 
+      // ── Nilai Ringkasan ──────────────────────────────────────────
       final nilaiTugas = (rataMateri * 0.30) + (rataPraktikum * 0.70);
-      final ringkasanValueRow = ringkasanHeaderRow + 1;
-      final ringkasanValues = [
-        rataMateri,
-        rataPraktikum,
-        nilaiTugas,
-        nilaiAkhir,
-      ];
 
       String nilaiColorHex;
       if (nilaiAkhir >= 80) {
@@ -117,54 +163,82 @@ class RekapNilaiService {
         nilaiColorHex = '#DC2626';
       }
 
+      final ringkasanValues = [
+        [rataMateri, '#0EA5E9'],
+        [rataPraktikum, '#D97706'],
+        [nilaiTugas, '#1A1F36'],
+        [nilaiAkhir, nilaiColorHex],
+      ];
+
       for (int i = 0; i < ringkasanValues.length; i++) {
         final cell = sheet.cell(
-          CellIndex.indexByString('${ringkasanCols[i]}$ringkasanValueRow'),
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 11),
         );
-        cell.value = DoubleCellValue(ringkasanValues[i]);
+        cell.value = DoubleCellValue(ringkasanValues[i][0] as double);
         cell.cellStyle = CellStyle(
-          bold: i == 3,
-          fontColorHex: i == 3
-              ? ExcelColor.fromHexString(nilaiColorHex)
-              : ExcelColor.fromHexString('#1A1F36'),
+          bold: true,
+          fontSize: 13,
+          fontColorHex: ExcelColor.fromHexString(
+            ringkasanValues[i][1] as String,
+          ),
+          backgroundColorHex: i == 3
+              ? ExcelColor.fromHexString('#F0FDF4')
+              : ExcelColor.fromHexString('#FFFFFF'),
           horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
         );
       }
 
-      // Header history nilai
-      final historyTitleRow = ringkasanValueRow + 2;
-
-      sheet.merge(
-        CellIndex.indexByString('A$historyTitleRow'),
-        CellIndex.indexByString('E$historyTitleRow'),
+      // Keterangan bobot di bawah nilai akhir
+      final bawahNilaiAkhir = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 12),
       );
-      sheet.cell(CellIndex.indexByString('A$historyTitleRow')).value =
-          TextCellValue('HISTORY NILAI');
-      sheet
-          .cell(CellIndex.indexByString('A$historyTitleRow'))
-          .cellStyle = CellStyle(
-        bold: true,
-        backgroundColorHex: ExcelColor.fromHexString('#F0F9FF'),
+      bawahNilaiAkhir.value = TextCellValue('bobot 40% rapor');
+      bawahNilaiAkhir.cellStyle = CellStyle(
+        fontSize: 10,
+        fontColorHex: ExcelColor.fromHexString('#166534'),
+        backgroundColorHex: ExcelColor.fromHexString('#F0FDF4'),
         horizontalAlign: HorizontalAlign.Center,
       );
 
-      final historyHeaderRow = historyTitleRow + 1;
-      final historyHeaders = ['No', 'Judul Tugas', 'Tipe', 'Metode', 'Nilai'];
-      final historyCols = ['A', 'B', 'C', 'D', 'E'];
+      // ── Label History ────────────────────────────────────────────
+      sheet.merge(
+        CellIndex.indexByString('A14'),
+        CellIndex.indexByString('E14'),
+      );
+      final historyLabel = sheet.cell(CellIndex.indexByString('A14'));
+      historyLabel.value = TextCellValue('HISTORY NILAI');
+      historyLabel.cellStyle = CellStyle(
+        bold: true,
+        fontSize: 10,
+        fontColorHex: mutedFg,
+        backgroundColorHex: softBg,
+        horizontalAlign: HorizontalAlign.Left,
+      );
 
+      // ── Header History ───────────────────────────────────────────
+      final historyHeaders = ['No', 'Judul Tugas', 'Tipe', 'Metode', 'Nilai'];
       for (int i = 0; i < historyHeaders.length; i++) {
         final cell = sheet.cell(
-          CellIndex.indexByString('${historyCols[i]}$historyHeaderRow'),
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 14),
         );
         cell.value = TextCellValue(historyHeaders[i]);
-        cell.cellStyle = headerStyle;
+        cell.cellStyle = CellStyle(
+          bold: true,
+          fontSize: 11,
+          fontColorHex: mutedFg,
+          backgroundColorHex: softBg,
+          horizontalAlign: i == 0 || i >= 2
+              ? HorizontalAlign.Center
+              : HorizontalAlign.Left,
+        );
       }
 
-      // Isi history nilai
+      // ── Isi History ──────────────────────────────────────────────
       for (int i = 0; i < historyNilai.length; i++) {
         final item = historyNilai[i];
         final tugas = item['tugas'];
-        final row = historyHeaderRow + i + 1;
+        final rowIndex = 15 + i;
         final nilai = (item['nilai'] as num).toDouble();
         final isPraktikum = tugas?['type_tugas'] == 'praktikum';
 
@@ -182,65 +256,106 @@ class RekapNilaiService {
         }
 
         // No
-        sheet.cell(CellIndex.indexByString('A$row')).value = IntCellValue(
-          i + 1,
+        final cellNo = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
         );
-        sheet.cell(CellIndex.indexByString('A$row')).cellStyle = CellStyle(
+        cellNo.value = IntCellValue(i + 1);
+        cellNo.cellStyle = CellStyle(
+          fontSize: 11,
+          fontColorHex: mutedFg,
           backgroundColorHex: rowBg,
           horizontalAlign: HorizontalAlign.Center,
         );
 
-        // Judul tugas
-        sheet.cell(CellIndex.indexByString('B$row')).value = TextCellValue(
-          tugas?['judul_tugas'] ?? '-',
+        // Judul Tugas
+        final cellJudul = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
         );
-        sheet.cell(CellIndex.indexByString('B$row')).cellStyle = CellStyle(
+        cellJudul.value = TextCellValue(tugas?['judul_tugas'] ?? '-');
+        cellJudul.cellStyle = CellStyle(
+          fontSize: 11,
+          fontColorHex: darkFg,
           backgroundColorHex: rowBg,
         );
 
         // Tipe
-        sheet.cell(CellIndex.indexByString('C$row')).value = TextCellValue(
-          isPraktikum ? 'Praktikum' : 'Teori',
+        final cellTipe = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
         );
-        sheet.cell(CellIndex.indexByString('C$row')).cellStyle = CellStyle(
-          backgroundColorHex: rowBg,
-          fontColorHex: isPraktikum
-              ? ExcelColor.fromHexString('#D97706')
-              : ExcelColor.fromHexString('#0EA5E9'),
+        cellTipe.value = TextCellValue(isPraktikum ? 'Praktikum' : 'Teori');
+        cellTipe.cellStyle = CellStyle(
+          fontSize: 11,
+          bold: true,
+          fontColorHex: isPraktikum ? amberFg : blueFg,
+          backgroundColorHex: isPraktikum ? amberBg : blueBg,
           horizontalAlign: HorizontalAlign.Center,
         );
 
         // Metode
-        sheet.cell(CellIndex.indexByString('D$row')).value = TextCellValue(
+        final cellMetode = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
+        );
+        cellMetode.value = TextCellValue(
           tugas?['metode'] == 'upload' ? 'Upload' : 'Manual',
         );
-        sheet.cell(CellIndex.indexByString('D$row')).cellStyle = CellStyle(
+        cellMetode.cellStyle = CellStyle(
+          fontSize: 11,
+          fontColorHex: mutedFg,
           backgroundColorHex: rowBg,
           horizontalAlign: HorizontalAlign.Center,
         );
 
         // Nilai
-        sheet.cell(CellIndex.indexByString('E$row')).value = DoubleCellValue(
-          nilai,
+        final cellNilai = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex),
         );
-        sheet.cell(CellIndex.indexByString('E$row')).cellStyle = CellStyle(
-          backgroundColorHex: rowBg,
-          fontColorHex: ExcelColor.fromHexString(itemNilaiColorHex),
+        cellNilai.value = DoubleCellValue(nilai);
+        cellNilai.cellStyle = CellStyle(
           bold: true,
+          fontSize: 11,
+          fontColorHex: ExcelColor.fromHexString(itemNilaiColorHex),
+          backgroundColorHex: rowBg,
           horizontalAlign: HorizontalAlign.Center,
         );
       }
 
-      // ── Lebar kolom ──
-      sheet.setColumnWidth(0, 5);
+      // ── Footer ───────────────────────────────────────────────────
+      final footerRow = 16 + historyNilai.length;
+      sheet.merge(
+        CellIndex.indexByString('A$footerRow'),
+        CellIndex.indexByString('C$footerRow'),
+      );
+      final footerLeft = sheet.cell(CellIndex.indexByString('A$footerRow'));
+      footerLeft.value = TextCellValue('SMK Mitra Permata');
+      footerLeft.cellStyle = CellStyle(
+        fontSize: 10,
+        fontColorHex: mutedFg,
+        backgroundColorHex: softBg,
+      );
+
+      sheet.merge(
+        CellIndex.indexByString('D$footerRow'),
+        CellIndex.indexByString('E$footerRow'),
+      );
+      final footerRight = sheet.cell(CellIndex.indexByString('D$footerRow'));
+      footerRight.value = TextCellValue(tahunAjaran);
+      footerRight.cellStyle = CellStyle(
+        fontSize: 10,
+        fontColorHex: mutedFg,
+        backgroundColorHex: softBg,
+        horizontalAlign: HorizontalAlign.Right,
+      );
+
+      // ── Row & Column Size ─────────────────────────────────────────
+      sheet.setRowHeight(0, 28); // header sekolah
+      sheet.setRowHeight(1, 20); // sub judul
+      sheet.setColumnWidth(0, 6);
       sheet.setColumnWidth(1, 35);
       sheet.setColumnWidth(2, 15);
       sheet.setColumnWidth(3, 12);
       sheet.setColumnWidth(4, 10);
 
-      excel.delete('Sheet1');
-
-      // ── Simpan file ──
+      // ── Simpan File ───────────────────────────────────────────────
       final bytes = excel.encode();
       if (bytes == null) return null;
 
@@ -255,14 +370,11 @@ class RekapNilaiService {
       }
 
       final fileName =
-          'nilai_${namaSiswa}_${namaMapel}_semester${semester}.xlsx'.replaceAll(
-            ' ',
-            '_',
-          );
+          'Nilai_${namaSiswa}_${namaMapel}_Sem${semester}_${tahunAjaran.replaceAll('/', '-')}.xlsx'
+              .replaceAll(' ', '_');
 
       final file = File('${dir!.path}/$fileName');
       await file.writeAsBytes(bytes);
-
       return file.path;
     } catch (e) {
       return null;

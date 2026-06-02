@@ -695,7 +695,7 @@ class _BuatTugasViewState extends State<BuatTugasView> {
                         ),
                       )
                     : const Text(
-                        'Simpan Tugas',
+                        'Bagikan Tugas',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

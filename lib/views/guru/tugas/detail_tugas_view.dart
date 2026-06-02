@@ -117,7 +117,7 @@ class _DetailTugasViewState extends State<DetailTugasView> {
               child: Row(
                 children: [
                   _infoBadge(
-                    isPraktikum ? 'Praktikum' : 'Materi',
+                    isPraktikum ? 'Praktikum' : 'Teori',
                     isPraktikum ? const Color(0xFFD97706) : Colors.white,
                     isPraktikum
                         ? const Color(0xFFFEF3E0)
