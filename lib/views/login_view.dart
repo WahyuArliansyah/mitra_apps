@@ -15,9 +15,6 @@ class AppColors {
   static const Color border = Color(0xFFE2E8F0);
 }
 
-// ============================================
-// MAIN LOGIN VIEW
-// ============================================
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -34,9 +31,6 @@ class _LoginViewState extends State<LoginView> {
   bool _emailFocused = false;
   bool _passwordFocused = false;
 
-  // ============================================
-  // FCM TOKEN LOGIC - TIDAK DIUBAH SAMA SEKALI
-  // ============================================
   Future<void> _updateFCMToken(String idPengguna, String role) async {
     if (role != 'siswa') return;
     final supabase = Supabase.instance.client;
@@ -255,7 +249,6 @@ class _LoginViewState extends State<LoginView> {
       ),
       child: Column(
         children: [
-          // Logo Container - Modern Rounded Design
           Container(
             width: 90,
             height: 90,
@@ -289,14 +282,6 @@ class _LoginViewState extends State<LoginView> {
             ),
           ),
           const SizedBox(height: 8),
-          // Text(
-          //   'Belajar Lebih Smart',
-          //   style: TextStyle(
-          //     fontSize: 15,
-          //     color: Colors.white.withOpacity(0.85),
-          //     fontWeight: FontWeight.w500,
-          //   ),
-          // ),
         ],
       ),
     );
@@ -348,7 +333,6 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 32),
 
-              // NIS/NIP Field - Modern Design
               _buildModernTextField(
                 controller: _emailController,
                 label: 'NIS / NIP',
@@ -360,11 +344,9 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 20),
 
-              // Password Field - Modern Design
               _buildModernPasswordField(),
               const SizedBox(height: 32),
 
-              // Login Button - Modern Gradient
               _buildLoginButton(),
             ],
           ),

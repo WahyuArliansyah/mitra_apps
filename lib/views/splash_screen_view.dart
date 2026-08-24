@@ -137,7 +137,6 @@ class _SplashScreenViewState extends State<SplashScreenView>
         child: SafeArea(
           child: Column(
             children: [
-              // ── Konten Tengah ──────────────────────────────
               Expanded(
                 child: Center(
                   child: AnimatedBuilder(

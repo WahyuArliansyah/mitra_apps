@@ -17,8 +17,8 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
   static const _navy = Color(0xFF0F2D5C);
 
   // Data siswa
-  String _idKelas = '';
   String _namaSiswa = '';
+  String _idKelas = '';
   String _namaKelas = '';
   bool _isLoadingSiswa = true;
 
@@ -45,7 +45,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
 
   Future<void> _loadDataSiswa() async {
     try {
-      // Ambil data siswa
       final siswaData = await supabase
           .from('siswa')
           .select('nama_siswa, id_kelas, kelas(nama_kelas)')
@@ -67,13 +66,11 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
           .select('tugas(id_mapel, mata_pelajaran(id, nama_mapel))')
           .eq('id_siswa', widget.idSiswa);
 
-      // Ambil daftar tahun ajaran unik dari tugas
       final tugasData = await supabase
           .from('nilai')
           .select('tugas(tahun_ajaran)')
           .eq('id_siswa', widget.idSiswa);
 
-      // Deduplikasi mapel
       final mapelMap = <String, Map<String, dynamic>>{};
       for (final item in mapelData) {
         final mapel = item['tugas']?['mata_pelajaran'];
@@ -82,7 +79,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
         }
       }
 
-      // Deduplikasi tahun ajaran
       final tahunSet = <String>{};
       for (final item in tugasData) {
         final ta = item['tugas']?['tahun_ajaran']?.toString();
@@ -114,7 +110,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
     });
 
     try {
-      // 1. Ambil list nilai siswa untuk mapel + semester + tahun ajaran
       final nilaiData = await supabase
           .from('nilai')
           .select(
@@ -132,7 +127,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
             tugas?['tahun_ajaran']?.toString() == _selectedTahunAjaran;
       }).toList();
 
-      // 2. Panggil RPC hitung_nilai_akhir
       final rpcResult = await supabase.rpc(
         'hitung_nilai_akhir',
         params: {
@@ -186,7 +180,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
                   ),
                 ),
 
-                // Filter dropdowns
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
@@ -305,7 +298,6 @@ class _RekapNilaiSiswaViewState extends State<RekapNilaiSiswa> {
                   ),
                 ),
 
-                // ── Konten nilai ─────────────────────────────────────────
                 SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverToBoxAdapter(

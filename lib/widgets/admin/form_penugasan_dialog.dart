@@ -24,8 +24,6 @@ class FormPenugasanDialog extends StatefulWidget {
 class _FormPenugasanDialogState extends State<FormPenugasanDialog> {
   static const _primary = Color(0xFF7C3AED);
 
-  // Struktur: 1 kelas → list mapel
-  // [{ 'kelas': 'id_kelas', 'mapelList': ['id_mapel1', 'id_mapel2'] }]
   List<Map<String, dynamic>> _kelasMapel = [
     {
       'kelas': null,
