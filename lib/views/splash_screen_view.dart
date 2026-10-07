@@ -172,7 +172,7 @@ class _SplashScreenViewState extends State<SplashScreenView>
                             ),
                             const SizedBox(height: 24),
 
-                            // Tagline muncul dengan slide up
+
                             Transform.translate(
                               offset: Offset(0, _slideAnim.value),
                               child: const Text(
@@ -193,7 +193,7 @@ class _SplashScreenViewState extends State<SplashScreenView>
                 ),
               ),
 
-              // ── Loading Indicator + Footer ─────────────────
+
               AnimatedBuilder(
                 animation: _controller,
                 builder: (_, __) => FadeTransition(
